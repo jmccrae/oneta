@@ -5,9 +5,9 @@
 #include <unordered_map>
 #include <ctime>
 #include <string>
-#include <random>
 #include <cfloat>
 #include <cstring>
+#include <cstdlib>
 #ifdef DEBUG
 #define BACKWARD_HAS_BFD 1
 #include "backward.hpp"
@@ -22,8 +22,6 @@ typedef vector<vector<vector<unsigned>>> MultilingCorpus;
 typedef vector<vector<unsigned>> MonolingCorpus;
 typedef vector<unsigned> Doc;
 
-default_random_engine generator(time(0));
-
 class Model {
     public:
         unsigned W,K,J,L;
@@ -31,14 +29,12 @@ class Model {
         unsigned *N_lkw;
         unsigned *N_lk;
         MultilingCorpus z;
-        uniform_int_distribution<unsigned> kgen;
-        uniform_real_distribution<double> pgen;
         const double alpha, beta;
     private:
         double *P;
     public:
         Model(unsigned vocab, unsigned topic, unsigned docs, unsigned langs) :
-           W(vocab), K(topic), J(docs), L(langs), kgen(0,K-1), pgen(0,1), alpha(2.0/K), beta(0.01) {
+           W(vocab), K(topic), J(docs), L(langs), alpha(2.0/K), beta(0.01) {
                N_kj = new unsigned[K*J];               
                N_lkw = new unsigned[L*K*W];
                N_lk = new unsigned[L*K];
@@ -56,13 +52,14 @@ class Model {
             memset(N_lkw,0,L*K*W*sizeof(unsigned));
             memset(N_lk,0,L*K*sizeof(unsigned));
             unsigned l = 0;
-            for(MonolingCorpus& mc : x) {
+            for(auto mc = x.begin(); mc != x.end(); ++mc) {
                 MonolingCorpus mz;
                 unsigned j = 0;
-                for(Doc& d : mc) {
+                for(auto d = mc->begin(); d != mc->end(); ++d) {
                     Doc zd;
-                    for(unsigned w : d) {
-                        unsigned k = kgen(generator);
+                    for(auto it = d->begin(); it != d->end(); ++it) {
+                        unsigned w = *it;
+                        unsigned k = rand();
                         zd.push_back(k);
                         N_kj[k*J + j]++;
                         N_lkw[l * K * W + k * W + w]++;
@@ -78,13 +75,14 @@ class Model {
 
         void iterate(MultilingCorpus& x) {
             unsigned l = 0;
-            for(MonolingCorpus& mc : x) {
+            for(auto mc = x.begin(); mc != x.end(); ++mc) {
                 MonolingCorpus& mz = z[l];
                 unsigned j = 0;
-                for(Doc& d : mc) {
+                for(auto d = mc->begin(); d != mc->end(); ++d) {
                     Doc& dz = mz[j];
                     unsigned i = 0;
-                    for(unsigned w : d) {
+                    for(auto it = d->begin(); it != d->end(); ++it) {
+                        unsigned w = *it;
                         auto oldK = dz[i];
                         auto k = sample(l,j,w,oldK);
                         assignZ(l,j,w,k,oldK);
@@ -114,10 +112,11 @@ class Model {
                 cout << endl;
             }
             int l = 0;
-            for(MonolingCorpus& mc : z) {
+            for(auto mc = z.begin(); mc != z.end(); ++mc) {
                 cout << "Language " << ++l << endl;
-                for(Doc& d : mc) {
-                    for(unsigned k : d) {
+                for(auto d = mc->begin(); d != mc->end(); ++d) {
+                    for(auto it = d->begin(); it != d->end(); ++it) {
+                        unsigned k = *it;
                         cout << k << " ";
                     }
                     cout << endl;
@@ -127,7 +126,7 @@ class Model {
         }
     private:
         unsigned sample(unsigned l, unsigned j, unsigned w, unsigned prevK) {
-            double u = pgen(generator);
+            double u = rand() / (double)RAND_MAX;
             double sum = 0.0;
             double bestPk = -DBL_MAX;
             for (unsigned k = 0; k < K; k++) {
@@ -196,6 +195,7 @@ void readcorpus(const char *fname, MonolingCorpus& x, unsigned& W, unordered_map
 }
 
 int main(int argc, char **argv) {
+    srand(time(0));
     if(argc != 9) {
         cerr << "Usage: ./lda train-corpus1 train-corpus2 test-corpus1 test-corpus2 K N out1 out2" << endl;
         return -1;

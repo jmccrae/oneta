@@ -1,4 +1,3 @@
-#include <armadillo>
 #include <cmath>
 #include <vector>
 #include <map>
@@ -6,6 +5,10 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <cstring>
+#include <sstream>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_linalg.h>
 
 using namespace std;
 
@@ -32,7 +35,7 @@ class SparseMat {
         /**
          * Number of rows and columns
          */
-        const int M,N;
+        const unsigned M,N;
         /**
          * The column pointer (offset where the nth column starts in the data)
          */
@@ -44,7 +47,7 @@ class SparseMat {
         /**
          * Create a sparse matrix of a given dimension
          */
-        SparseMat(const int rows, const int cols) : M(rows), N(cols) {            
+        SparseMat(const unsigned rows, const unsigned cols) : M(rows), N(cols) {            
             cp = new int[cols+1];
             cp[0] = 0;
         }
@@ -60,7 +63,7 @@ class SparseMat {
             }
             auto v2 = make_shared<vector<double>>(M,0.0);
             auto it = data.begin();
-            for(int i = 0; i < N; i++) {
+            for(unsigned i = 0; i < N; i++) {
                 for(int j = cp[i]; j < cp[i+1]; j++) {
                     (*v2)[it->idx] += (*v)[i] * it->val;
                     ++it;
@@ -78,7 +81,7 @@ class SparseMat {
             }
             auto v2 = make_shared<vector<double>>(N,0.0);
             auto it = data.begin();
-            for(int i = 0; i < N; i++) {
+            for(unsigned i = 0; i < N; i++) {
                 for(int j = cp[i]; j < cp[i+1]; j++) {
                     (*v2)[i] += (*v)[it->idx] * it->val;
                     ++it;
@@ -144,7 +147,7 @@ void divide(shared_ptr<vector<double>> v1, shared_ptr<vector<double>> v2) {
         cerr << v1->size() << " != " << v2->size() << endl;
         throw "Vectors do not match";
     }
-    for(int i = 0; i < v1->size(); i++) {
+    for(unsigned i = 0; i < v1->size(); i++) {
         (*v1)[i] /= (*v2)[i];
     }
 }    
@@ -157,7 +160,7 @@ void sub(shared_ptr<vector<double>> v1, shared_ptr<vector<double>> v2) {
         cerr << v1->size() << " != " << v2->size() << endl;
         throw "Vectors do not match";
     }
-    for(int i = 0; i < v1->size(); i++) {
+    for(unsigned i = 0; i < v1->size(); i++) {
         (*v2)[i] = (*v1)[i] - (*v2)[i];
     }
 
@@ -167,7 +170,7 @@ void sub(shared_ptr<vector<double>> v1, shared_ptr<vector<double>> v2) {
  * Print a vector
  */
 void print_vec(shared_ptr<vector<double>> v) {
-    for(int i = 0; i < v->size(); i++) {
+    for(unsigned i = 0; i < v->size(); i++) {
         cout << (*v)[i] << " ";
     }
     cout << endl;
@@ -187,10 +190,10 @@ void normalize(shared_ptr<vector<double>> v1, shared_ptr<vector<double>> v2) {
         v += (*x)*(*x);
     }
     v = sqrt(v);
-    for(int i = 0; i < v1->size(); i++) {
+    for(unsigned i = 0; i < v1->size(); i++) {
         (*v1)[i] /= v;
     }
-    for(int i = 0; i < v2->size(); i++) {
+    for(unsigned i = 0; i < v2->size(); i++) {
         (*v2)[i] /= v;
     }
 }
@@ -273,10 +276,10 @@ int main(int argv, char **argc) {
 
     if(sqnorm) {
         cout << "Calculating norms" << endl;
-        for(int i = 0; i < freqs1.size(); i++) {
+        for(unsigned i = 0; i < freqs1.size(); i++) {
             freqs1[i] = 1.0 / freqs1[i];
         }
-        for(int i = 0; i < freqs2.size(); i++) {
+        for(unsigned i = 0; i < freqs2.size(); i++) {
             freqs2[i] = 1.0 / freqs2[i];
         }
     }
@@ -355,18 +358,23 @@ int main(int argv, char **argc) {
     }
 
     cout << "Calculating ATA";
-    arma::Mat<double> ATA(D1,D1);
+    //arma::Mat<double> ATA(D1,D1);
+    auto ATA = gsl_matrix_alloc(D1,D1);
     for(int i = 0; i < D1; i++) {
         cout << ".";
         cout.flush();
         for(int i2 = 0; i2 < D1; i2++) {
-            ATA(i,i2) = A.inner(i,i2);
+            //ATA(i,i2) = A.inner(i,i2);
+            gsl_matrix_set(ATA,i,i2,A.inner(i,i2));
         }
     }
     cout << endl;
 
     cout << "Solve Inverse..." << endl;
-    arma::Mat<double> ATAi = arma::inv(ATA);
+    //arma::Mat<double> ATAi = arma::inv(ATA);
+    gsl_permutation *p = gsl_permutation_alloc(D1);
+    int signum;
+    gsl_linalg_LU_decomp(ATA,p,&signum);
 
     cout << "Calculating projected vectors";
     ofstream out(argc[4]);
@@ -401,11 +409,15 @@ int main(int argv, char **argc) {
         auto v1a = B * v2;
         sub(d1,v1a);
         auto v1b = A.multt(v1a);
-        arma::Col<double> v1c(D1);
-        for(int i = 0; i < D1; i++) {
-            v1c(i) = (*v1b)[i];
-        }
-        arma::Col<double> v1 = ATAi * v1c;
+        //arma::Col<double> v1c(D1);
+        //for(int i = 0; i < D1; i++) {
+        //    v1c(i) = (*v1b)[i];
+        //}
+        //arma::Col<double> v1 = ATAi * v1c;
+        auto v1c = gsl_vector_alloc(D1);
+        memcpy(v1c->data,v1b->data(),sizeof(double)*D1);
+        auto v1 = gsl_vector_alloc(D1);
+        gsl_linalg_LU_solve(ATA,p,v1c,v1);
         for(int i = 0; i < D1; i++) {
             out << i << " ";
         }
@@ -416,7 +428,7 @@ int main(int argv, char **argc) {
         }
         out << "||| ";
         for(int i = 0; i < D1; i++) {
-            out << v1[i] << " ";
+            out << v1->data[i] << " ";
         }
         for(int i = 0; i < D2; i++) {
             if((*v2)[i] != 0.0) {

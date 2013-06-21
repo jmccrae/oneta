@@ -86,11 +86,10 @@ void readTopicFile(vector<SparseArray>& t, const char *fname) {
                 ss.get();
             }
         }
-        auto p = ss.peek();
         while(ss.peek() == '|' || ss.peek() == ' ') {
             ss.get();
         }
-        int vals = 0;
+        unsigned vals = 0;
         for(auto it = arr.begin(); it != arr.end(); ++it) {
             if(++vals > arr.size()) {
                 throw runtime_error("Index and value length differ (too many values)");

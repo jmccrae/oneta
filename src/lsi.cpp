@@ -24,7 +24,7 @@ using namespace std;
 extern "C" void dsaupd_(int *ido, char *bmat, int *n, char *which, int *nev, double *tol, double *resid, int *ncv, double *v, int *ldv, int *iparam, 
 			int *ipntr, double *workd, double *workl, int *lworkl, int *info);
 
-extern "C" void dseupd_(int *rvec, char *howmany, int *select, double *d,
+extern "C" void dseupd_(int *rvec, const char *howmany, int *select, double *d,
 			double *z, int *ldz, double *sigma, char *bmat, 
 			int *n, char *which, int *nev, double *tol, 
 			double *resid, int *ncv, double *v, int *ldv, 
@@ -57,8 +57,8 @@ class SparseMat {
             delete[] cp;
         }
         void add_col(int n, map<int,double>& colData) {
-            for(auto it : colData)  {
-                data.push_back(SparseArrayElem(it.first,it.second));
+            for(auto it = colData.begin(); it != colData.end(); ++it) {
+                data.push_back(SparseArrayElem(it->first,it->second));
             }
             cp[n+1] = cp[n] + colData.size();
         }
@@ -106,11 +106,11 @@ class SparseMat {
         void print() {
             int j = 0;
             int i = 0;
-            for(auto it : data) {
+            for(auto it = data.begin(); it != data.end(); ++it) {
                 while(i >= cp[j]) {
                     j++;
                 }
-                cout << it.val << "@(" << it.idx << "," << (j-1) << ") ";
+                cout << it->val << "@(" << it->idx << "," << (j-1) << ") ";
                 i++;
             }
             cout << endl;
@@ -261,8 +261,8 @@ int main(int argv, char **argc) {
                 inDoc.insert(words[token]);
             }
         }
-        for(int i : inDoc) {
-            doc_freqs[i]++;
+        for(auto i = inDoc.begin(); i != inDoc.end(); ++i) {
+            doc_freqs[*i]++;
         }
         N++;
     }
