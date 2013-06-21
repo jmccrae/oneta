@@ -27,4 +27,7 @@ python merge-projections.py working/wiki-en_es.oneta9k-es working/wiki-en_es.dum
 python merge-projections.py working/wiki-en_es.oneta9k-en working/wiki-en_es.trans-to-es working/wiki-en_es.merge9k-en 0.002
 python merge-projections.py working/wiki-en_es.oneta9k-es working/wiki-en_es.dummy-es working/wiki-en_es.merge9k-es 0.002
 ./mate-finding working/wiki-en_es.merge9k-en  working/wiki-en_es.merge9k-es
+python merge-projections.py working/wiki-en_es.oneta9k-en working/wiki-en_es.trans-to-es working/wiki-en_es.merge9k-en 0.001
+python merge-projections.py working/wiki-en_es.oneta9k-es working/wiki-en_es.dummy-es working/wiki-en_es.merge9k-es 0.001
+./mate-finding working/wiki-en_es.merge9k-en  working/wiki-en_es.merge9k-es
 

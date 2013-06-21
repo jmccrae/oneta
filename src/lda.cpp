@@ -7,6 +7,7 @@
 #include <string>
 #include <random>
 #include <cfloat>
+#include <cstring>
 #ifdef DEBUG
 #define BACKWARD_HAS_BFD 1
 #include "backward.hpp"
