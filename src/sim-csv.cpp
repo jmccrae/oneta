@@ -6,6 +6,14 @@
 #include <string>
 #include <stdexcept>
 #include <sstream>
+#ifdef DEBUG
+#define BACKWARD_HAS_BFD 1
+#include "backward.hpp"
+namespace backward {
+    backward::SignalHandling sh;
+}
+#endif
+
 
 using namespace std;
 
@@ -56,7 +64,7 @@ double cosSim(const SparseArray& a, const SparseArray& b) {
     }
  
     if(a2 == 0 || b2 == 0) {
-        return 1.0;
+        return 0.0;
     } else {
         //cout << "ab=" << ab << " a2=" << a2 << " b2=" << b2 << endl;
         return ab / sqrt(a2*b2);
@@ -97,18 +105,20 @@ void readTopicFile(vector<SparseArray>& t, const char *fname) {
                 ss.get();
             }
         }
-        while(ss.peek() == '|' || ss.peek() == ' ') {
-            ss.get();
-        }
-        unsigned vals = 0;
-        for(auto it = arr.begin(); it != arr.end(); ++it) {
-            if(++vals > arr.size()) {
-                throw runtime_error("Index and value length differ (too many values)");
+        if(!arr.empty()) {
+            while(ss.peek() == '|' || ss.peek() == ' ') {
+                ss.get();
             }
-            ss >> it->value;
-        }   
-        if(vals != arr.size()) {
-            throw runtime_error("Index and value length differ (too few values)");
+            unsigned vals = 0;
+            for(auto it = arr.begin(); it != arr.end(); ++it) {
+                if(++vals > arr.size()) {
+                    throw runtime_error("Index and value length differ (too many values)");
+                }
+                ss >> it->value;
+            }   
+            if(vals != arr.size()) {
+                throw runtime_error("Index and value length differ (too few values)");
+            }
         }
  
         sort(arr.begin(),arr.end());
@@ -118,11 +128,28 @@ void readTopicFile(vector<SparseArray>& t, const char *fname) {
 }
      
 int main(int argc, char **argv) {
-    if(argc != 3) {
-        cerr << "Usage: mate-finding topics1 topics2" << endl;
+    if(argc != 3 && argc != 5) {
+        cerr << "Usage: sim-csv topics1 topics2 [topic1-names topic2-names] > scores" << endl;
         return -1;
     }
     
+    bool namedTopics = argc == 5;
+
+    vector<string> topic1names;
+    vector<string> topic2names;
+    if(namedTopics) {
+        ifstream topic1namesFile(argv[3]);
+        string line;
+        while(getline(topic1namesFile,line)) {
+            topic1names.push_back(line);
+        }
+        topic1namesFile.close();
+        ifstream topic2namesFile(argv[4]);
+        while(getline(topic2namesFile,line)) {
+            topic2names.push_back(line);
+        }
+    }
+
     vector<SparseArray> t1;
     try {
         readTopicFile(t1,argv[1]);
@@ -138,59 +165,36 @@ int main(int argc, char **argv) {
         cerr << "Failed: " << e.what() << endl;
         return -1;
     }
-    double top1prec = 0, top5prec = 0, top10prec = 0, mrr =0;
-    int n = 0;
 
     if(t1.size() != t2.size()) {
         cerr << "Topic sets differ in length" << endl;
         return -1;
     }
 
-    int N = t1.size();
+    unsigned N = t1.size();
 
-    for(int i = 0; i < N; i++) {
-        double *sim = new double[N];
-        for(int j = 0; j < N; j++) {
-            sim[j] = cosSim(t1[i],t2[j]);
-        }
-        int rank = 1;
-        int ties = 0;
-        for(int j = 0; j < N; j++) {
-            if(sim[j] > sim[i]) {
-                rank++;
-            }
-            if(sim[j] == sim[i]) {
-                ties++;
-            }
-        }
-        if(ties != 1) {
-            cout << "!";
-        }
-        if(rank == 1) {
-            top1prec++;
-            cout << "+";
-        } else if(rank < 10) {
-            cout << rank;
-        } else {
-            cout << "-";
-        }
-        cout.flush();
-        
-        if(rank <= 5) {
-            top5prec += 1;
-        }
-	if(rank <= 10) {
-            top10prec += 1;
-        }
-        mrr += 1.0/rank;
-        n++;
-        delete[] sim;
+    if(namedTopics && (N != topic1names.size() || N != topic2names.size())) {
+        cerr << "Named topics size mismatch: " << N << ", " << topic1names.size() << ", " << topic2names.size() << endl;
+        return -1;
     }
-    cout << endl;
-    cout << "Top-1  Precision     : " << (top1prec/n) << endl;
-    cout << "Top-5  Precision     : " << (top5prec/n) << endl;
-    cout << "Top-10 Precision     : " << (top10prec/n) << endl;
-    cout << "Mean Reciprocal Rank : " << (mrr / n) << endl;
+
+    cerr << "Writing CSV" << endl;
+    cout << argv[1] << "," << argv[2] << ",SIM" << endl;
+    for(unsigned i = 0; i < N; i++) {
+        for(unsigned j = 0; j < N; j++) {
+            auto sim = cosSim(t1[i],t2[j]);
+            if(namedTopics) {
+                cout << "\"" << topic1names[i] << "\",\"" << topic2names[j] << "\"," << sim << endl;
+            } else {
+                cout << i << "," << j << "," << sim << endl;
+            }
+        }
+        if(i % 10 == 9) {
+            cerr << ".";
+            cerr.flush();
+        }
+    }
+    cerr << endl;
         
     return 0;
 }      

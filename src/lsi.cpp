@@ -9,6 +9,13 @@
 #include <cstring>
 #include <fstream>
 #include <memory>
+#include "sparse_mat.h"
+
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #ifdef DEBUG
 #define BACKWARD_HAS_BFD 1
 #include "backward.hpp"
@@ -32,111 +39,13 @@ extern "C" void dseupd_(int *rvec, const char *howmany, int *select, double *d,
 			int *lworkl, int *info);
 //-----------------------------------------------		
 
-class SparseArrayElem {
-    public:
-        int idx;
-        double val;
-        SparseArrayElem() : idx(0), val(0.0){
+//--------MMap----
+extern "C" void *mmap(void *addr, size_t length, int prot, int flags,
+                  int fd, off_t offset);
+extern "C" int munmap(void *addr, size_t length); 
+//----------------
 
-        }
-        SparseArrayElem(int i, double v) : idx(i), val(v) {
-
-        }
-};
-
-class SparseMat {
-    public:
-        const int M,N;
-        int *cp;
-        vector<SparseArrayElem> data;
-        SparseMat(const int rows, const int cols) : M(rows), N(cols) {            
-            cp = new int[cols+1];
-            cp[0] = 0;
-        }
-        ~SparseMat() {
-            delete[] cp;
-        }
-        void add_col(int n, map<int,double>& colData) {
-            for(auto it = colData.begin(); it != colData.end(); ++it) {
-                data.push_back(SparseArrayElem(it->first,it->second));
-            }
-            cp[n+1] = cp[n] + colData.size();
-        }
-        /**
-         * If this matrix is A calculate v_out = AA^T v_in
-         */
-        void AAT_mult(double *v_in, double *v_out) {
-            double *v_tmp = new double[N];
-            memset(v_tmp,0,N*sizeof(double));
-            memset(v_out,0,M*sizeof(double));
-            auto it = data.begin();
-            for(int i = 0; i < N; i++) {
-                for(int j = cp[i]; j < cp[i+1]; j++) {
-                    v_tmp[i] += v_in[it->idx] * it->val;
-                    ++it;
-                }
-            }
-            it = data.begin();
-            for(int i = 0; i < N; i++) {
-                for(int j = cp[i]; j < cp[i+1]; j++) {
-                    v_out[it->idx] += v_tmp[i] * it->val;
-                    ++it;
-                }
-            }           
-            delete[] v_tmp;
-        }
-
-
-        double inner(int i, int j) {
-            double sq = 0;
-            int a = cp[i], b = cp[j];
-            while(a < cp[i+1] && b < cp[j+1]) {
-               if(data[a].idx < data[b].idx) {
-                   a++;
-               } else if(data[b].idx < data[a].idx) {
-                   b++;
-               } else {
-                   sq += data[a].val * data[b].val;
-                   a++;
-                   b++;
-               }
-            }
-            return sq;
-        }
-        void print() {
-            int j = 0;
-            int i = 0;
-            for(auto it = data.begin(); it != data.end(); ++it) {
-                while(i >= cp[j]) {
-                    j++;
-                }
-                cout << it->val << "@(" << it->idx << "," << (j-1) << ") ";
-                i++;
-            }
-            cout << endl;
-        }
-};
-
-
-class DenseMat {
-    public:
-        double *data;
-        int M,N;
-        DenseMat(double *d, int rows, int cols) : data(d), M(rows), N(cols) {
-
-        }
-        shared_ptr<vector<double>> operator*(shared_ptr<vector<double>> v) {
-            auto v2 = make_shared<vector<double>>(M,0);
-            for(int i = 0; i < M; i++) {
-                for(int j = 0; j < N; j++) {
-                    (*v2)[i] += data[i*N+j] * (*v)[j];
-                }
-            }
-            return v2;
-        }
-};
-
-void divide(shared_ptr<vector<double>> v1, double *v2) {
+void divide(shared_ptr<vector<double>> v1, const double *v2) {
     for(unsigned i = 0; i < v1->size(); i++) {
         (*v1)[i] /= v2[i];
     }
@@ -147,10 +56,13 @@ void divide(shared_ptr<vector<double>> v1, double *v2) {
  * Calculate the top K eigendecompsition of AAT
  * @param A sparse matrix
  * @param The number of LSI topics 0 < K <= M.N
- * @param The vector to write the eigenvectors to. evec = new double[K*M.N]
  * @param The vector to write the eigenvalues to. eval = new double[K];
+ * @return The array of vectors
  */
-void arpack_sym_eig(SparseMat& M, int K, double *evec, double *eval) {
+double *arpack_sym_eig(SparseMat& M, int K, double *eval, char *tmpname) {
+    cout << "Preparing ARPACK" << endl;
+    char tmpname2[256];
+    tmpnam(tmpname2);
     int ido = 0; 
     int n = M.M;
     char bmat[2] = "I"; /* standard symmetric eigenvalue problem*/
@@ -158,12 +70,29 @@ void arpack_sym_eig(SparseMat& M, int K, double *evec, double *eval) {
 
     double tol = 0.0; /* Machine precision*/
     double *resid=new double[n];
-    int ncv = 4*K; 
+    int ncv = 2*K; 
     if(ncv>n){
         ncv = n;
     }
     int ldv=n;
-    double *v=new double[ldv*ncv];
+    cout << "Alloc v (" << (ldv*ncv) << " elements)" << endl;
+    double *v;
+    if(tmpname) {
+        int fd = open(tmpname, O_RDWR | O_CREAT | O_TRUNC, (mode_t)0600);
+        cout << tmpname << endl;
+        if(fd == -1) {
+            cerr << "Could not allocate" << endl;
+            return 0;
+        }
+        v = (double*)mmap(0,ldv*ncv*sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        if(v == MAP_FAILED) {
+            cerr << "map failed" << endl;
+            return 0;
+        }
+    } else {
+        v=new double[ldv*ncv];
+    }
+    cout << "ok" << endl;
     int *iparam=new int[11];
     iparam[0] = 1;   // Specifies the shift strategy (1->exact)
     iparam[2] = 3*n; // Maximum number of iterations
@@ -176,13 +105,27 @@ void arpack_sym_eig(SparseMat& M, int K, double *evec, double *eval) {
 
     int *ipntr=new int[11];
     double *workd=new double[3*n];
-    double *workl=new double[ncv*(ncv+8)];
+    cout << "Alloc workl (" << (ncv*(ncv+8)) << " elements)" << endl;
+    double *workl;
+    if(tmpname) {
+        int fd = open(tmpname2, O_RDWR | O_CREAT | O_TRUNC, (mode_t)0600);
+        cout << tmpname2 << endl;
+        if(fd == -1) {
+            cerr << "Could not allocate" << endl;
+            return 0;
+        }
+        workl = (double*)mmap(0,ncv*(ncv+8)*sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    } else {
+        workl=new double[ncv*(ncv+8)];
+    }
+    cout << "ok" << endl;
     int lworkl = ncv*(ncv+8); /* Length of the workl array */
     int info = 0; /* Passes convergence information out of the iteration
 					routine. */
     int rvec = 1; /* Specifies that eigenvectors should be calculated */
     int *select=new int[ncv];
     double *d=new double[2*ncv];
+    cout << "OK" << endl;
 
     do {
         dsaupd_(&ido, bmat, &n, which, &K, &tol, resid, &ncv, v, &ldv, iparam, ipntr, workd, workl, &lworkl, &info);
@@ -211,32 +154,100 @@ void arpack_sym_eig(SparseMat& M, int K, double *evec, double *eval) {
             cout << "Arnoldi update, try increasing NCV.\n\n";
         }
         memcpy(eval, d, sizeof(double)*K);
-        memcpy(evec, v, sizeof(double)*K*n);
+        //memcpy(evec, v, sizeof(double)*K*n);
     }
     cout << "ARPACK done" << endl;
     delete[] resid;
-    delete[] v;
     delete[] iparam;
     delete[] ipntr;
     delete[] workd;
     delete[] workl;
     delete[] select;
     delete[] d;
+    if(tmpname) {
+        remove(tmpname2);
+    }
+    return v;
 }
 
+/**
+ * Project the vectors
+ * @param fName The file to write to
+ * @param testCorpus The test documents
+ * @param W Number of unique tokens
+ * @param U Eigenvector matrix
+ * @param words The word index map
+ * @param eval The eigenvectors
+ * @param K The other dimension of the eigenvector matrix
+ */
+void projectVectors(const char * fName, ifstream& testCorpus, const int W, DenseMat& U, unordered_map<string,int>& words, const double *eval, const int K) {
+    string line;
+    cout << "Projecting vectors" << endl;
 
-int main(int argv, char **argc) {
-    if(argv != 5) {
-        cerr << "Usage: ./lsi traincorpus testcorpus K output" << endl;
+    ofstream out(fName);
+    while(getline(testCorpus,line)) {
+        cout << ".";
+        cout.flush();
+        auto d = make_shared<vector<double>>(W,0); 
+        stringstream tokens(line);
+        string token;
+        while(getline(tokens,token,' ')) {
+            if(words.find(token) != words.end()) {
+                (*d)[words[token]] += 1;
+            }
+        }
+        auto r = U * d;
+        divide(r,eval);
+
+        for(int i = 0; i < K; i++) {
+            out << i << " ";
+        }
+        out << "||| ";
+        for(int i = 0; i < K; i++) {
+            out << (*r)[i] << " ";
+        }
+        out << endl;
+    }
+    cout << endl;
+    out.flush();
+    out.close();
+    testCorpus.close();
+} 
+
+int main(int argc, char **argv) {
+    bool use_mmap = false;
+    int c;
+    while((c = getopt(argc,argv,"m")) != -1) {
+        switch(c) {
+            case 'm':
+                use_mmap=true;
+                break;
+            default:
+                cerr << c << " not recognized" << endl;
+        }
+    }
+    if(argc - optind != 6) {
+        cerr << "Usage: ./lsi traincorpus testcorpus-src testcorpus-trg K output-src output-trg" << endl;
         return -1;
     }
 
     unordered_map<string,int> words;
     vector<double> doc_freqs;
 
+    ifstream testCorpus1(argv[1+optind]);
+    if(testCorpus1.fail()) {
+        cerr << "Could not access " << argv[1+optind] << endl;
+        return -1;
+    }
+    ifstream testCorpus2(argv[2+optind]);
+    if(testCorpus2.fail()) {
+        cerr << "Could not access " << argv[2+optind] << endl;
+        return -1;
+    }
+
     int W = 0;
 
-    int K = atoi(argc[3]);
+    int K = atoi(argv[3+optind]);
 
     int N = 0;
 
@@ -245,7 +256,7 @@ int main(int argv, char **argc) {
     }
 
     cout << "First scan of training data" << endl;
-    ifstream corpus1(argc[1]);
+    ifstream corpus1(argv[optind]);
     string line;
     while(getline(corpus1,line)) {
         set<int> inDoc;
@@ -274,7 +285,7 @@ int main(int argv, char **argc) {
     SparseMat *mat = new SparseMat(W,N);
 
     int n = 0;
-    ifstream corpus2(argc[1]);
+    ifstream corpus2(argv[optind]);
     while(getline(corpus2,line)) {
         if(n % 1000 == 999) {
             cout << ".";
@@ -297,46 +308,27 @@ int main(int argv, char **argc) {
     corpus2.close();
     //mat->print();
 
-    cout << "Finding eigenvectors";
-    double *evec = new double[K*mat->M];
+    cout << "Finding eigenvectors" << endl;
+    char mmap_file[256];
+    if(use_mmap) {
+        tmpnam(mmap_file);
+    }
     double *eval = new double[K];
-    arpack_sym_eig(*mat,K,evec,eval);
+    double *evec = arpack_sym_eig(*mat,K,eval,use_mmap ? mmap_file : nullptr);
     delete mat;
+
+    for(int i = 0; i < K; i++) {
+        eval[i] = sqrt(eval[i]);
+    }
 
     DenseMat U(evec,K,W);
     
-    cout << "Projecting vectors" << endl;
+    projectVectors(argv[4+optind], testCorpus1, W, U, words,eval,K);
+    projectVectors(argv[5+optind], testCorpus2, W, U, words,eval,K);
 
-    ifstream testCorpus(argc[2]);
-    ofstream out(argc[4]);
-    while(getline(testCorpus,line)) {
-        cout << ".";
-        cout.flush();
-        auto d = make_shared<vector<double>>(W,0); 
-        stringstream tokens(line);
-        string token;
-        while(getline(tokens,token,' ')) {
-            if(words.find(token) != words.end()) {
-                (*d)[words[token]] += 1;
-            }
-        }
-        auto r = U * d;
-        divide(r,eval);
-
-        for(int i = 0; i < K; i++) {
-            out << i << " ";
-        }
-        out << "||| ";
-        for(int i = 0; i < K; i++) {
-            out << (*r)[i] << " ";
-        }
-        out << endl;
+    if(use_mmap) {
+        remove(mmap_file);
     }
-    cout << endl;
-    out.flush();
-    out.close();
-    testCorpus.close();
     delete[] evec;
     delete[] eval;
 }
-

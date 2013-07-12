@@ -2,7 +2,7 @@ import re
 import sys
 
 def main():
-    """Simply append two project vectors for mate finding trial"""
+    """Append two project vectors for mate finding trial"""
     if len(sys.argv) != 4 and len(sys.argv) != 5:
         exit("Usage: python merge-projections.py proj1 proj2 proj-out")
 

@@ -9,136 +9,9 @@
 #include <sstream>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
+#include "sparse_mat.h"
 
 using namespace std;
-
-/**
- * Sparse Array element is simply an idx and a value
- */
-class SparseArrayElem {
-    public:
-        int idx;
-        double val;
-        SparseArrayElem() : idx(0), val(0.0){
-
-        }
-        SparseArrayElem(int i, double v) : idx(i), val(v) {
-
-        }
-};
-
-/**
- * A sparse matrix in compressed column format
- */
-class SparseMat {
-    public:
-        /**
-         * Number of rows and columns
-         */
-        const unsigned M,N;
-        /**
-         * The column pointer (offset where the nth column starts in the data)
-         */
-        int *cp;
-        /**
-         * The non-zero values
-         */
-        vector<SparseArrayElem> data;
-        /**
-         * Create a sparse matrix of a given dimension
-         */
-        SparseMat(const unsigned rows, const unsigned cols) : M(rows), N(cols) {            
-            cp = new int[cols+1];
-            cp[0] = 0;
-        }
-        ~SparseMat() {
-            delete[] cp;
-        }
-        /**
-         * Calculate Av
-         */
-        shared_ptr<vector<double>> operator*(shared_ptr<vector<double>>& v) {
-            if(v->size() != N) {
-                throw "Wrong vector size";
-            }
-            auto v2 = make_shared<vector<double>>(M,0.0);
-            auto it = data.begin();
-            for(unsigned i = 0; i < N; i++) {
-                for(int j = cp[i]; j < cp[i+1]; j++) {
-                    (*v2)[it->idx] += (*v)[i] * it->val;
-                    ++it;
-                }
-            }
-            return v2;
-        }
-        /**
-         * Calculate A^T v
-         */
-        shared_ptr<vector<double>> multt(shared_ptr<vector<double>>& v) {
-            if(v->size() != M) {
-                cerr << v->size() << " != " << M << endl;
-                throw "Wrong vector size";
-            }
-            auto v2 = make_shared<vector<double>>(N,0.0);
-            auto it = data.begin();
-            for(unsigned i = 0; i < N; i++) {
-                for(int j = cp[i]; j < cp[i+1]; j++) {
-                    (*v2)[i] += (*v)[it->idx] * it->val;
-                    ++it;
-                }
-            }
-            return v2;
-        }
-        /**
-         * Used when building the matrix, no checks for double calls
-         */
-        void add_col(int n, map<int,double>& colData) {
-            for(auto it = colData.begin(); it != colData.end(); ++it) {
-                data.push_back(SparseArrayElem(it->first,it->second));
-            }
-            cp[n+1] = cp[n] + colData.size();
-        }
-        /**
-         * For the i-th column compute <a_i,a_i>
-         */
-        double col_inner(int i) {
-            double sq = 0;
-            for(int j = cp[i]; j < cp[i+1]; j++) {
-                sq += data[j].val * data[j].val;
-            }
-            return sq;
-        }
-        /**
-         * Compute the inner product of <a_i,a_j>
-         */
-        double inner(int i, int j) {
-            double sq = 0;
-            int a = cp[i], b = cp[j];
-            while(a < cp[i+1] && b < cp[j+1]) {
-               if(data[a].idx < data[b].idx) {
-                   a++;
-               } else if(data[b].idx < data[a].idx) {
-                   b++;
-               } else {
-                   sq += data[a].val * data[b].val;
-                   a++;
-                   b++;
-               }
-            }
-            return sq;
-        }
-        /**
-         * Print this matrix
-         */
-        void print() {
-            for(auto it = data.begin(); it != data.end(); ++it) {
-                cout << it->val << "@" << it->idx << " ";
-            }
-            cout << endl;
-        }
-
-};
-
 /**
  * Calculate the result of v1/v2 and updates v1
  */
@@ -190,11 +63,13 @@ void normalize(shared_ptr<vector<double>> v1, shared_ptr<vector<double>> v2) {
         v += (*x)*(*x);
     }
     v = sqrt(v);
-    for(unsigned i = 0; i < v1->size(); i++) {
-        (*v1)[i] /= v;
-    }
-    for(unsigned i = 0; i < v2->size(); i++) {
-        (*v2)[i] /= v;
+    if(v != 0) {
+        for(unsigned i = 0; i < v1->size(); i++) {
+            (*v1)[i] /= v;
+        }
+        for(unsigned i = 0; i < v2->size(); i++) {
+            (*v2)[i] /= v;
+        }
     }
 }
 
@@ -230,7 +105,7 @@ int main(int argv, char **argc) {
         return -1;
     }
 
-    cout << "First scan of training data" << endl;
+    cerr << "First scan of training data" << endl;
     // The goal here is to map the words and find the dimensions of our matrices
 
     int J = 0;
@@ -274,8 +149,9 @@ int main(int argv, char **argc) {
     }
     corpus.close();
 
+    // If we are calculating SQNorm we do it here
     if(sqnorm) {
-        cout << "Calculating norms" << endl;
+        cerr << "Calculating norms" << endl;
         for(unsigned i = 0; i < freqs1.size(); i++) {
             freqs1[i] = 1.0 / freqs1[i];
         }
@@ -284,8 +160,8 @@ int main(int argv, char **argc) {
         }
     }
 
-    cout << "W1 = " << w1Words.size() << endl;
-    cout << "W2 = " << w2Words.size() << endl;
+    cerr << "W1 = " << w1Words.size() << endl;
+    cerr << "W2 = " << w2Words.size() << endl;
 
     const int D2 = J - D1;
 
@@ -294,9 +170,13 @@ int main(int argv, char **argc) {
         return -1;
     }
 
-    cout << "D2 = " << D2 << endl;
+    cerr << "D2 = " << D2 << endl;
 
-    cout << "Building matrices";
+    // We use L-Solve procedure, that is we first compute a term-document matrix of
+    // the form 
+    //   X = ( A B )
+    //     = ( 0 C )
+    cerr << "Building matrices";
     SparseMat A(W1,D1), B(W1,D2), C(W2,D2);
 
     ifstream corpus2(argc[1]);
@@ -307,9 +187,9 @@ int main(int argv, char **argc) {
     int j = 0;
     while(!corpus2.eof()) {
         if(j % 10 == 9) {
-            cout << ".";
+            cerr << ".";
         }
-        cout.flush();
+        cerr.flush();
         map<int,double> c1;
         map<int,double> c2;
 
@@ -347,38 +227,66 @@ int main(int argv, char **argc) {
         }
         j++;
     }
-    cout << endl;
+    cerr << endl;
     corpus2.close();
 
-    cout << "Build Cn" << endl;
+    // Next we look to compute the L-Solve defined as 
+    // L^T = ( (A^T A)^-1 A^T -(A^T A)^-1 A^T B C' ) 
+    //       (        0                 C'         )
+    //
+    // Where  C' = C^T / Cn
+
+    cerr << "Build Cn" << endl;
     auto Cn = make_shared<vector<double>>(D2,0);
+    int non_zeroes = 0;
     for(int i = 0; i < D2; i++) {
         double d = C.col_inner(i);
-        (*Cn)[i] = d > 0 ? d : 1;
-    }
-
-    cout << "Calculating ATA";
-    //arma::Mat<double> ATA(D1,D1);
-    auto ATA = gsl_matrix_alloc(D1,D1);
-    for(int i = 0; i < D1; i++) {
-        cout << ".";
-        cout.flush();
-        for(int i2 = 0; i2 < D1; i2++) {
-            //ATA(i,i2) = A.inner(i,i2);
-            gsl_matrix_set(ATA,i,i2,A.inner(i,i2));
+        if(d > 0) {
+            (*Cn)[i] = d;
+        } else {
+            (*Cn)[i] = 1;
+            non_zeroes++;
         }
     }
-    cout << endl;
+    cerr << "Discarded Documents: " << non_zeroes << endl;
 
-    cout << "Solve Inverse..." << endl;
-    //arma::Mat<double> ATAi = arma::inv(ATA);
-    gsl_permutation *p = gsl_permutation_alloc(D1);
-    int signum;
-    gsl_linalg_LU_decomp(ATA,p,&signum);
+    cerr << "Calculating ATA";
+    gsl_matrix* ATA = 0;
+    gsl_permutation *p = 0;
+    // If we are doing standard ESA we skip calculating any orthonormalization
+    if(D1 > 0) {
+        ATA = gsl_matrix_alloc(D1,D1);
+        for(int i = 0; i < D1; i++) {
+            cerr << ".";
+            cerr.flush();
+            for(int i2 = 0; i2 < D1; i2++) {
+                gsl_matrix_set(ATA,i,i2,A.inner(i,i2));
+            }
+        }
+        cerr << endl;
+   
+        cerr << "Solve Inverse..." << endl;
+        p = gsl_permutation_alloc(D1);
+        int signum;
+        gsl_linalg_LU_decomp(ATA,p,&signum);
+    } else {
+        cerr << endl;
+    }
 
-    cout << "Calculating projected vectors";
-    ofstream out(argc[4]);
-    if(out.fail()) {
+    cerr << "Calculating projected vectors";
+    // For each of our input vectors we first calculate the term frequency as 
+    // two vectors d1 and d2. We then multiply by L^T so we get
+    // v2 = C^T * d2 / Cn
+    // P(d1,d2) = ( ATAi * A^T * (d1 - B * v2) , v2 )
+
+    ostream *out;
+    if(strcmp("-",argc[4]) == 0) {
+        out = &cout;
+    } else {
+        ofstream outFile(argc[4]);
+        out = &outFile;
+    }
+    if(out->fail()) {
         cerr << "Could not write to " << argc[4] << endl;
         return -1;
     }
@@ -388,8 +296,8 @@ int main(int argv, char **argc) {
         return -1;
     }
     while(getline(test,line)) {
-        cout << ".";
-        cout.flush();
+        cerr << ".";
+        cerr.flush();
         string token;
         stringstream ss(line);
         auto d1 = make_shared<vector<double>>(W1,0.0),
@@ -409,37 +317,35 @@ int main(int argv, char **argc) {
         auto v1a = B * v2;
         sub(d1,v1a);
         auto v1b = A.multt(v1a);
-        //arma::Col<double> v1c(D1);
-        //for(int i = 0; i < D1; i++) {
-        //    v1c(i) = (*v1b)[i];
-        //}
-        //arma::Col<double> v1 = ATAi * v1c;
-        auto v1c = gsl_vector_alloc(D1);
-        memcpy(v1c->data,v1b->data(),sizeof(double)*D1);
-        auto v1 = gsl_vector_alloc(D1);
-        gsl_linalg_LU_solve(ATA,p,v1c,v1);
+        gsl_vector *v1c, *v1 = 0;
+        if(D1 > 0) {
+           v1c = gsl_vector_alloc(D1);
+           memcpy(v1c->data,v1b->data(),sizeof(double)*D1);
+           v1 = gsl_vector_alloc(D1);
+           gsl_linalg_LU_solve(ATA,p,v1c,v1);
+        }
         for(int i = 0; i < D1; i++) {
-            out << i << " ";
+            *out << i << " ";
         }
         for(int i = 0; i < D2; i++) {
             if((*v2)[i] != 0.0) {
-                out << i << " ";
+                *out << i << " ";
             }
         }
-        out << "||| ";
+        *out << "||| ";
         for(int i = 0; i < D1; i++) {
-            out << v1->data[i] << " ";
+            *out << v1->data[i] << " ";
         }
         for(int i = 0; i < D2; i++) {
             if((*v2)[i] != 0.0) {
-                out << (*v2)[i] << " ";
+                *out << (*v2)[i] << " ";
             }
         }
-        out << endl;
+        *out << endl;
     }
-    out.flush();
-    out.close();
+    out->flush();
+//    out.close();
     test.close();
-    cout << endl;
+    cerr << endl;
     return 0;
 }

@@ -3,9 +3,9 @@ import json
 import sys
 
 def main():
-  """Calculate the word map an index of the words in a corpus"""
+  """Calculate the word map, i.e., an index of the words in a corpus"""
   if len(sys.argv) != 2:
-      exit("Usage python words-in-corpus.py corpus")
+      exit("Usage python words-in-corpus.py corpus >wordMap.json")
   corpus = open(sys.argv[1])
   words = dict()
   count = 1

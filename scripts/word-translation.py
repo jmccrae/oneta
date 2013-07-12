@@ -73,12 +73,12 @@ def main():
                     freqs2[k] += f
                 else:
                     freqs2[k] = f
-#            elif t in wordMap.keys():
-#                k = wordMap[t]
-#                if k in freqs2:
-#                    freqs2[k] += f
-#                else:
-#                    freqs2[k] = f
+            elif t in wordMap.keys():
+                k = wordMap[t]
+                if k in freqs2:
+                    freqs2[k] += f
+                else:
+                    freqs2[k] = f
         
         for t in freqs2.keys():
             out.write(str(t) + " ")

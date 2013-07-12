@@ -349,10 +349,17 @@ int main(int argv, char **argc) {
 
     cout << "Build Cn" << endl;
     auto Cn = make_shared<vector<double>>(D2,0);
+    int non_zeroes = 0;
     for(int i = 0; i < D2; i++) {
         double d = C.col_inner(i);
-        (*Cn)[i] = d > 0 ? d : 1;
+        if(d > 0) {
+            (*Cn)[i] = d;
+        } else {
+            (*Cn)[i] = 1;
+            non_zeroes++;
+        }
     }
+    cout << "Discarded Documents: " << non_zeroes << endl;
 
     cout << "Calculating ATA";
     arma::Mat<double> ATA(D1,D1);

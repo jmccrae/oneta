@@ -8,6 +8,7 @@
 #include <cfloat>
 #include <cstring>
 #include <cstdlib>
+#include <iomanip>
 #ifdef DEBUG
 #define BACKWARD_HAS_BFD 1
 #include "backward.hpp"
@@ -22,35 +23,48 @@ typedef vector<vector<vector<unsigned>>> MultilingCorpus;
 typedef vector<vector<unsigned>> MonolingCorpus;
 typedef vector<unsigned> Doc;
 
+/**
+ * The PLDA model - Solved by Gibbs sampling
+ */
 class Model {
     public:
+        /** Dimensionality of the model */
         unsigned W,K,J,L;
-        unsigned *N_kj;
-        unsigned *N_lkw;
-        unsigned *N_lk;
+        /** The document-topic correspondence */
+        float *N_jk;
+        /** The language-word-topic correspondence */
+        float *N_lwk;
+        /** The language-topic counts */            
+        float *N_lk;
+        /** Current topic assignment */
         MultilingCorpus z;
-        const double alpha, beta;
+        /** Other model parameters */
+        const float alpha, beta, betaW;
     private:
-        double *P;
+        /** Temporary array used for sampling */
+        float *P;
     public:
         Model(unsigned vocab, unsigned topic, unsigned docs, unsigned langs) :
-           W(vocab), K(topic), J(docs), L(langs), alpha(2.0/K), beta(0.01) {
-               N_kj = new unsigned[K*J];               
-               N_lkw = new unsigned[L*K*W];
-               N_lk = new unsigned[L*K];
-               P = new double[K+1];
+           W(vocab), K(topic), J(docs), L(langs), alpha(2.0/K), beta(0.01), betaW(0.01*vocab) {
+               N_jk = new float[K*J];               
+               N_lwk = new float[L*K*W];
+               N_lk = new float[L*K];
+               P = new float[K+1];
         } 
         ~Model() {
-            delete[] N_kj;
-            delete[] N_lkw;
+            delete[] N_jk;
+            delete[] N_lwk;
             delete[] N_lk;
             delete[] P;
         }
 
+        /**
+         * Initialize the model at random
+         */
         void initialize(MultilingCorpus& x) {
-            memset(N_kj,0,K*J*sizeof(unsigned));
-            memset(N_lkw,0,L*K*W*sizeof(unsigned));
-            memset(N_lk,0,L*K*sizeof(unsigned));
+            memset(N_jk,0,K*J*sizeof(float));
+            memset(N_lwk,0,L*K*W*sizeof(float));
+            memset(N_lk,0,L*K*sizeof(float));
             unsigned l = 0;
             for(auto mc = x.begin(); mc != x.end(); ++mc) {
                 MonolingCorpus mz;
@@ -59,10 +73,10 @@ class Model {
                     Doc zd;
                     for(auto it = d->begin(); it != d->end(); ++it) {
                         unsigned w = *it;
-                        unsigned k = rand();
+                        unsigned k = rand() % K;
                         zd.push_back(k);
-                        N_kj[k*J + j]++;
-                        N_lkw[l * K * W + k * W + w]++;
+                        N_jk[j*K + k]++;
+                        N_lwk[l * K * W + w * K + k]++;
                         N_lk[l * K + k]++;
                     }
                     j++;
@@ -73,6 +87,9 @@ class Model {
             }  
         }
 
+        /**
+         * Perform one iteration
+         */
         void iterate(MultilingCorpus& x) {
             unsigned l = 0;
             for(auto mc = x.begin(); mc != x.end(); ++mc) {
@@ -95,9 +112,12 @@ class Model {
             }
         }
 
+        /**
+         * Copy values from another model
+         */
         void import(Model& m, unsigned l) {
             for(unsigned i = 0; i < K * W; i++) {
-                N_lkw[i] += m.N_lkw[l * K * W + i];
+                N_lwk[i] += m.N_lwk[l * K * W + i];
             }
             for(unsigned i = 0; i < K; i++) {
                 N_lk[i] += m.N_lk[l * K + i];
@@ -107,7 +127,7 @@ class Model {
         void print() {
             for(unsigned j = 0; j < J; j++) {
                 for(unsigned k = 0; k < K; k++) {
-                    cout << N_kj[k * J + j] << " ";
+                    cout << N_jk[j * K + k] << " ";
                 }
                 cout << endl;
             }
@@ -126,15 +146,19 @@ class Model {
         }
     private:
         unsigned sample(unsigned l, unsigned j, unsigned w, unsigned prevK) {
-            double u = rand() / (double)RAND_MAX;
-            double sum = 0.0;
-            double bestPk = -DBL_MAX;
+            float u = rand() / (float)RAND_MAX;
+            float sum = 0.0;
+            unsigned jkIdx = j * K;
+            unsigned lwkIdx = l * K * W + w * K;
+            unsigned lkIdx = l * K;
             for (unsigned k = 0; k < K; k++) {
-                const unsigned dec = prevK == k ? 1 : 0;
-                P[k] = a_kj(k, j, dec) * b_lwk(l, w, k, dec) / c_lk(l, k, dec);
-                if (P[k] > bestPk) {
-                    bestPk = P[k];
-                }
+                const float dec = prevK == k ? 1 : 0;
+                //P[k] = a_kj(k, j, dec) * b_lwk(l, w, k, dec) / c_lk(l, k, dec);
+                //P[k] = (N_kj[k * J + j] + alpha - dec) * (N_lkw[l * K * W + k * W + w] + beta - dec) / (N_lk[l * K + k] + W * beta - dec);
+                P[k] = (N_jk[jkIdx] + alpha - dec) * (N_lwk[lwkIdx] + beta - dec) / (N_lk[lkIdx] + betaW - dec);
+                jkIdx++;
+                lwkIdx++;
+                lkIdx++;
                 sum += P[k];
             }
             for (unsigned k = 0; k < K; k++) {
@@ -149,28 +173,24 @@ class Model {
 
         void assignZ(unsigned l, unsigned j, unsigned w, unsigned k, unsigned oldK) {
             if(k != oldK) {
-                N_kj[oldK * J + j]--;
-                N_lkw[l * K * W + oldK * W + w]--;
+                N_jk[j * K + oldK]--;
+                N_lwk[l * K * W + w * K + oldK]--;
                 N_lk[l * K + oldK]--;
-                N_kj[k * J + j]++;
-                N_lkw[l * K * W + k * W + w]++;
+                N_jk[j * K + k]++;
+                N_lwk[l * K * W + w * K + k]++;
                 N_lk[l * K + k]++;
             }
         }
-
-        inline double a_kj(unsigned k, unsigned j, unsigned dec) {
-            return (double) N_kj[k * J +j] + alpha - dec;
-        }
-
-        inline double b_lwk(unsigned l, unsigned w, unsigned k, unsigned dec) {
-            return ((double) N_lkw[l * K * W + k * W  + w] + beta - dec);
-        }
-
-        inline double c_lk(unsigned l, unsigned k, unsigned dec) {
-            return ((double) N_lk[l * K + k] + W * beta - dec);
-        }
 };
 
+/**
+ * Read the corpus and build a monolingual corpus object
+ * @param fname The file to read
+ * @param x The corpus object to write to
+ * @param W The number of unique tokens in the file
+ * @param words The word index max
+ * @param add_vocab OOV: extend word map or discard?
+ */
 void readcorpus(const char *fname, MonolingCorpus& x, unsigned& W, unordered_map<string,unsigned>& words, bool add_vocab = true) {
     ifstream train(fname);
     string line;
@@ -234,9 +254,8 @@ int main(int argc, char **argv) {
     for(unsigned n = 0; n < N; n++) {
         auto begin = clock();
         model.iterate(x_lj);
-        int t = (clock() - begin);
-        int eta = (N - n - 1) * t;
-        cout << "Iteration " << (n+1) << " ETA " << (eta / 3600) << ":" << ((eta % 3600) / 60) << ":" << (eta % 60) << endl;
+        int eta = (clock() - begin) / CLOCKS_PER_SEC * (N-n-1);
+        cout << "Iteration " << (n+1) << " ETA " << (eta / 3600) << ":" << setfill('0') << setw(2) << ((eta % 3600) / 60) << ":" << setfill('0') << setw(2) << (eta % 60) << endl;
     } 
 
     cout << "Loading test" << endl;
@@ -263,9 +282,8 @@ int main(int argc, char **argv) {
         auto begin = clock();
         testModel1.iterate(test1);
         testModel2.iterate(test2);
-        int t = (clock() - begin);
-        int eta = (N - n - 1) * t;
-        cout << "Test Iteration " << (n+1) << " ETA " << (eta / 3600) << ":" << ((eta % 3600) / 60) << ":" << (eta % 60) << endl;
+        int eta = (clock() - begin) / CLOCKS_PER_SEC * (N-n-1);
+        cout << "Test Iteration " << (n+1) << " ETA " << (eta / 3600) << ":" << setfill('0') << setw(2) << ((eta % 3600) / 60) << ":" << setfill('0') << setw(2) << (eta % 60) << endl;
     }
 
     cout << "Writing" << endl;
@@ -280,8 +298,8 @@ int main(int argc, char **argv) {
         out1 << "||| ";
         out2 << "||| ";
         for(unsigned k = 0; k < K; k++) {
-            out1 << testModel1.N_kj[k * J + j] << " ";
-            out2 << testModel2.N_kj[k * J + j] << " ";
+            out1 << testModel1.N_jk[j * K + k] << " ";
+            out2 << testModel2.N_jk[j * K + k] << " ";
         }
         out1 << endl;
         out2 << endl;
