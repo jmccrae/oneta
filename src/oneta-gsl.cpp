@@ -283,8 +283,7 @@ int main(int argv, char **argc) {
     if(strcmp("-",argc[4]) == 0) {
         out = &cout;
     } else {
-        ofstream outFile(argc[4]);
-        out = &outFile;
+        out = new ofstream(argc[4]);
     }
     if(out->fail()) {
         cerr << "Could not write to " << argc[4] << endl;
