@@ -6,6 +6,8 @@
 #include <string>
 #include <stdexcept>
 #include <sstream>
+#include <memory>
+#include <cstring>
 #ifdef DEBUG
 #define BACKWARD_HAS_BFD 1
 #include "backward.hpp"
@@ -71,6 +73,44 @@ double cosSim(const SparseArray& a, const SparseArray& b) {
     }
 }
 
+unique_ptr<SparseArray> readTopicLine(string& line, int& linesRead) {
+    stringstream ss(line);
+    ss.exceptions(ifstream::failbit);	
+    if(linesRead % 10 == 0) {
+       cerr << ".";
+    }
+    cerr.flush();
+    linesRead++;
+    auto arr = unique_ptr<SparseArray>(new SparseArray());
+    while(ss.peek() != '|') {
+        SparseArrayElem e;
+        ss >> e.idx;
+        arr->push_back(e);
+        while(ss.peek() == ' ') {
+            ss.get();
+        }
+    }
+    if(!arr->empty()) {
+        while(ss.peek() == '|' || ss.peek() == ' ') {
+            ss.get();
+        }
+        unsigned vals = 0;
+        for(auto it = arr->begin(); it != arr->end(); ++it) {
+            if(++vals > arr->size()) {
+                throw runtime_error("Index and value length differ (too many values)");
+            }
+            ss >> it->value;
+        }   
+        if(vals != arr->size()) {
+            throw runtime_error("Index and value length differ (too few values)");
+        }
+    }
+ 
+    sort(arr->begin(),arr->end());
+
+    return arr;
+}
+ 
 /**
  * Read a topic vector file
  * The format of these files are such that each line is:
@@ -89,44 +129,12 @@ void readTopicFile(vector<SparseArray>& t, const char *fname) {
     }
     string line;
     while(getline(topic1file,line)) {
-        stringstream ss(line);
-        ss.exceptions(ifstream::failbit);	
-        if(linesRead % 10 == 0) {
-	   cerr << ".";
-        }
-        cerr.flush();
-        linesRead++;
-        SparseArray arr;
-        while(ss.peek() != '|') {
-            SparseArrayElem e;
-            ss >> e.idx;
-            arr.push_back(e);
-            while(ss.peek() == ' ') {
-                ss.get();
-            }
-        }
-        if(!arr.empty()) {
-            while(ss.peek() == '|' || ss.peek() == ' ') {
-                ss.get();
-            }
-            unsigned vals = 0;
-            for(auto it = arr.begin(); it != arr.end(); ++it) {
-                if(++vals > arr.size()) {
-                    throw runtime_error("Index and value length differ (too many values)");
-                }
-                ss >> it->value;
-            }   
-            if(vals != arr.size()) {
-                throw runtime_error("Index and value length differ (too few values)");
-            }
-        }
- 
-        sort(arr.begin(),arr.end());
-        t.push_back(arr);
+        t.push_back(*readTopicLine(line,linesRead));
     }
     cerr << "OK" << endl;
 }
-     
+
+   
 int main(int argc, char **argv) {
     if(argc != 3 && argc != 5) {
         cerr << "Usage: sim-csv topics1 topics2 [topic1-names topic2-names] > scores" << endl;
@@ -134,6 +142,7 @@ int main(int argc, char **argv) {
     }
     
     bool namedTopics = argc == 5;
+    bool use_stdin = strcmp(argv[1],"-") == 0;
 
     vector<string> topic1names;
     vector<string> topic2names;
@@ -151,11 +160,13 @@ int main(int argc, char **argv) {
     }
 
     vector<SparseArray> t1;
-    try {
-        readTopicFile(t1,argv[1]);
-    } catch(ifstream::failure e) {
-        cerr << "Failed: " << e.what() << endl;
-        return -1;
+    if(!use_stdin) {
+        try {        
+            readTopicFile(t1,argv[1]);
+        } catch(ifstream::failure e) {
+            cerr << "Failed: " << e.what() << endl;
+            return -1;
+        }
     }
     
     vector<SparseArray> t2;
@@ -166,23 +177,36 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    if(t1.size() != t2.size()) {
+    if(t1.size() != t2.size() && !use_stdin) {
         cerr << "Topic sets differ in length" << endl;
         return -1;
     }
 
-    unsigned N = t1.size();
+    unsigned N = t2.size();
 
     if(namedTopics && (N != topic1names.size() || N != topic2names.size())) {
         cerr << "Named topics size mismatch: " << N << ", " << topic1names.size() << ", " << topic2names.size() << endl;
         return -1;
     }
 
+    int linesRead = 0;
+
     cerr << "Writing CSV" << endl;
-    cout << argv[1] << "," << argv[2] << ",SIM" << endl;
+    cout << (use_stdin ? "STDIN" : argv[1]) << "," << argv[2] << ",SIM" << endl;
     for(unsigned i = 0; i < N; i++) {
+        unique_ptr<SparseArray> t1i;
+        if(use_stdin) {
+            string line;
+            getline(cin,line);
+            t1i = readTopicLine(line,linesRead);
+        }        
         for(unsigned j = 0; j < N; j++) {
-            auto sim = cosSim(t1[i],t2[j]);
+            double sim;
+            if(use_stdin) {
+               sim = cosSim(*t1i,t2[j]);
+            } else {
+                sim = cosSim(t1[i],t2[j]);
+            }
             if(namedTopics) {
                 cout << "\"" << topic1names[i] << "\",\"" << topic2names[j] << "\"," << sim << endl;
             } else {
