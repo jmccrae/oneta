@@ -193,11 +193,13 @@ int main(int argc, char **argv) {
 
     cerr << "Writing CSV" << endl;
     cout << (use_stdin ? "STDIN" : argv[1]) << "," << argv[2] << ",SIM" << endl;
-    for(unsigned i = 0; i < N; i++) {
+    for(unsigned i = 0; i < N || use_stdin; i++) {
         unique_ptr<SparseArray> t1i;
         if(use_stdin) {
             string line;
-            getline(cin,line);
+            if(!getline(cin,line)) {
+                break;
+            }
             t1i = readTopicLine(line,linesRead);
         }        
         for(unsigned j = 0; j < N; j++) {
