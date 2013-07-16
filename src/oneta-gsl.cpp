@@ -340,11 +340,22 @@ int main(int argv, char **argc) {
                 *out << (*v2)[i] << " ";
             }
         }
+        if(D1 > 0) {
+            gsl_vector_free(v1c);
+            gsl_vector_free(v1);
+        }
         *out << endl;
     }
     out->flush();
 //    out.close();
     test.close();
     cerr << endl;
+    if(D1 > 0) {
+        gsl_permutation_free(p);
+        gsl_matrix_free(ATA);
+    }
+    if(strcmp("-",argc[4]) != 0) {
+        delete out;
+    }
     return 0;
 }
