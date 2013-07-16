@@ -316,7 +316,7 @@ int main(int argv, char **argc) {
         auto v1a = B * v2;
         sub(d1,v1a);
         auto v1b = A.multt(v1a);
-        gsl_vector *v1c, *v1 = 0;
+        gsl_vector *v1c = 0, *v1 = 0;
         if(D1 > 0) {
            v1c = gsl_vector_alloc(D1);
            memcpy(v1c->data,v1b->data(),sizeof(double)*D1);
