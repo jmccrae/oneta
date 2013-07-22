@@ -314,7 +314,7 @@ int main(int argc, char **argv) {
         tmpnam(mmap_file);
     }
     double *eval = new double[K];
-    double *evec = arpack_sym_eig(*mat,K,eval,use_mmap ? mmap_file : nullptr);
+    double *evec = arpack_sym_eig(*mat,K,eval,use_mmap ? mmap_file : NULL);
     delete mat;
 
     for(int i = 0; i < K; i++) {
