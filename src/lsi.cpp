@@ -227,7 +227,21 @@ int main(int argc, char **argv) {
         }
     }
     if(argc - optind != 6) {
-        cerr << "Usage: ./lsi traincorpus testcorpus-src testcorpus-trg K output-src output-trg" << endl;
+        cerr << "Usage: ./lsi train-corpus test-corpus-src test-corpus-trg K vectors-src vectors-trg" << endl;
+        cerr << endl;
+        cerr << "Applies the Latent Semantic Indexing method" << endl;
+        cerr << endl;
+        cerr << "  train-corpus     The training corpus where documents consist" << endl;
+        cerr << "                     of both languages appended (i.e., by using" << endl;
+        cerr << "                     `scripts/join.py`)" << endl;
+        cerr << "  test-corpus-src  The source language evaluation corpus" << endl;
+        cerr << "  test-corpus-trg  The target language evaluation corpus" << endl;
+        cerr << "  K                The number of topics to calculate in the" << endl;
+        cerr << "                     representation" << endl;
+        cerr << "  vectors-src      The output file to write the source language" << endl;
+        cerr << "                     representations to" << endl;
+        cerr << "  vectors-trg      The output file to write the target language" << endl;
+        cerr << "                      representations to" << endl;
         return -1;
     }
 

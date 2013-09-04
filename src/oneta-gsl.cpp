@@ -90,7 +90,24 @@ double update_corpus_build_col(string& token, unordered_map<string,int>& words, 
 
 int main(int argv, char **argc) {
     if(argv != 5 && argv != 6) {
-        cerr << "Usage: ./oneta train_corpus test_corpus kernel_size output [-sqnorm]" << endl;
+        cerr << "Usage: ./oneta train-corpus test-corpus kernel-size vectors [-sqnorm]" << endl;
+        cerr << endl;
+        cerr << "Applies the (Orthonormal) explicit topic analysis method" << endl;
+        cerr << endl;
+        cerr << "  train-corpus  The training corpus (Note this command" << endl;
+        cerr << "                 should be run once per language)" << endl;
+        cerr << "  test-corpus   The test corpus" << endl;
+        cerr << "  kernel-size   The degree of complexity in the calculation. " << endl;
+        cerr << "                 At N = 0 this command" << endl;
+        cerr << "                 runs no orthonormalization, if N  " << endl;
+        cerr << "                 is the number of lines (documents) i" << endl;
+        cerr << "                 n the _train_ corpus, this is" << endl;
+        cerr << "                 full orthonormalization." << endl;
+        cerr << "  vectors       The output to write the translingual" << endl;
+        cerr << "                 representations to" << endl;
+        cerr << "  -sqnorm       If this is set apply term frequency normalization" << endl;
+        cerr << "                 (Note this must appear at the end of" << endl;
+        cerr << "                 the command list)" << endl;
         return -1;
     }
     unordered_map<string,int> w1Words;

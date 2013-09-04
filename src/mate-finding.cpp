@@ -119,7 +119,14 @@ void readTopicFile(vector<SparseArray>& t, const char *fname) {
      
 int main(int argc, char **argv) {
     if(argc != 3) {
-        cerr << "Usage: mate-finding topics1 topics2" << endl;
+        cerr << "Usage: mate-finding vectors1 vectors2" << endl;
+        cerr << endl;
+        cerr << "Compare two sets of translingual representations." << endl;
+        cerr << "It is assumed the files correspond line-by-line" << endl;
+        cerr << endl;
+        cerr << " vectors1   The first set of vectors" << endl;
+        cerr << " vectors2   The second set of vectors" << endl;
+
         return -1;
     }
     

@@ -217,7 +217,20 @@ void readcorpus(const char *fname, MonolingCorpus& x, unsigned& W, unordered_map
 int main(int argc, char **argv) {
     srand(time(0));
     if(argc != 9) {
-        cerr << "Usage: ./lda train-corpus1 train-corpus2 test-corpus1 test-corpus2 K N out1 out2" << endl;
+        cerr << "Usage: ./lda train-corpus-src train-corpus-trg test-corpus-src test-corpus-trg K N vectors-src vectors-trg" << endl;
+        cerr << endl;
+        cerr << "Applies the Polylingual Latent Dirichlet Allocation method" << endl;
+        cerr << endl;
+        cerr << "  train-corpus-src   The source language training corpus" << endl;
+        cerr << "  train-corpus-trg   The target language training corpus" << endl;
+        cerr << "  test-corpus-src    The source language evaluation corpus" << endl;
+        cerr << "  test-corpus-trg    The target language evaluation corpus" << endl;
+        cerr << "  K                  The number of topics to calculate" << endl;
+        cerr << "  N                  The number of iterations of Gibbs sampling to perform" << endl;
+        cerr << "  vectors-src        The output file to write the source language " << endl;
+        cerr << "                       representations to" << endl;
+        cerr << "  vectors-trg        The output file to write the target language " << endl;
+        cerr << "                       representations to" << endl;
         return -1;
     }
 
