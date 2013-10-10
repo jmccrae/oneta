@@ -273,18 +273,23 @@ int main(int argv, char **argc) {
     // If we are doing standard ESA we skip calculating any orthonormalization
     if(D1 > 0) {
         ATA = gsl_matrix_alloc(D1,D1);
+        ofstream tmp("tmp.mat");
         for(int i = 0; i < D1; i++) {
             cerr << ".";
             cerr.flush();
             for(int i2 = 0; i2 < D1; i2++) {
                 gsl_matrix_set(ATA,i,i2,A.inner(i,i2));
+                tmp << A.inner(i,i2) << ",";
             }
+            tmp << endl;
         }
+        tmp.close();
         cerr << endl;
    
         cerr << "Solve Inverse..." << endl;
         p = gsl_permutation_alloc(D1);
         int signum;
+
         gsl_linalg_LU_decomp(ATA,p,&signum);
     } else {
         cerr << endl;

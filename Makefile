@@ -42,10 +42,10 @@ EQUALS = =
 CMAKE_EDIT_COMMAND = /usr/bin/ccmake
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/jmccrae/oneta
+CMAKE_SOURCE_DIR = /home/jmccrae/projects/oneta
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/jmccrae/oneta
+CMAKE_BINARY_DIR = /home/jmccrae/projects/oneta
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -72,9 +72,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/jmccrae/oneta/CMakeFiles /home/jmccrae/oneta/CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/jmccrae/projects/oneta/CMakeFiles /home/jmccrae/projects/oneta/CMakeFiles/progress.marks
 	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/jmccrae/oneta/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/jmccrae/projects/oneta/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -165,6 +165,19 @@ bin/sim-csv: cmake_check_build_system
 bin/sim-csv/fast:
 	$(MAKE) -f CMakeFiles/bin/sim-csv.dir/build.make CMakeFiles/bin/sim-csv.dir/build
 .PHONY : bin/sim-csv/fast
+
+#=============================================================================
+# Target rules for targets named bin/translator-train
+
+# Build rule for target.
+bin/translator-train: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 bin/translator-train
+.PHONY : bin/translator-train
+
+# fast build rule for target.
+bin/translator-train/fast:
+	$(MAKE) -f CMakeFiles/bin/translator-train.dir/build.make CMakeFiles/bin/translator-train.dir/build
+.PHONY : bin/translator-train/fast
 
 src/lda.o: src/lda.cpp.o
 .PHONY : src/lda.o
@@ -286,6 +299,30 @@ src/sim-csv.cpp.s:
 	$(MAKE) -f CMakeFiles/bin/sim-csv.dir/build.make CMakeFiles/bin/sim-csv.dir/src/sim-csv.cpp.s
 .PHONY : src/sim-csv.cpp.s
 
+src/translator-train.o: src/translator-train.cpp.o
+.PHONY : src/translator-train.o
+
+# target to build an object file
+src/translator-train.cpp.o:
+	$(MAKE) -f CMakeFiles/bin/translator-train.dir/build.make CMakeFiles/bin/translator-train.dir/src/translator-train.cpp.o
+.PHONY : src/translator-train.cpp.o
+
+src/translator-train.i: src/translator-train.cpp.i
+.PHONY : src/translator-train.i
+
+# target to preprocess a source file
+src/translator-train.cpp.i:
+	$(MAKE) -f CMakeFiles/bin/translator-train.dir/build.make CMakeFiles/bin/translator-train.dir/src/translator-train.cpp.i
+.PHONY : src/translator-train.cpp.i
+
+src/translator-train.s: src/translator-train.cpp.s
+.PHONY : src/translator-train.s
+
+# target to generate assembly for a file
+src/translator-train.cpp.s:
+	$(MAKE) -f CMakeFiles/bin/translator-train.dir/build.make CMakeFiles/bin/translator-train.dir/src/translator-train.cpp.s
+.PHONY : src/translator-train.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -297,6 +334,7 @@ help:
 	@echo "... bin/mate-finding"
 	@echo "... bin/oneta"
 	@echo "... bin/sim-csv"
+	@echo "... bin/translator-train"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... src/lda.o"
@@ -314,6 +352,9 @@ help:
 	@echo "... src/sim-csv.o"
 	@echo "... src/sim-csv.i"
 	@echo "... src/sim-csv.s"
+	@echo "... src/translator-train.o"
+	@echo "... src/translator-train.i"
+	@echo "... src/translator-train.s"
 .PHONY : help
 
 

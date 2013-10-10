@@ -177,15 +177,16 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    if(t1.size() != t2.size() && !use_stdin) {
+/*    if(t1.size() != t2.size() && !use_stdin) {
         cerr << "Topic sets differ in length" << endl;
         return -1;
-    }
+    }*/
 
-    unsigned N = t2.size();
+    unsigned N1 = t1.size();
+    unsigned N2 = t2.size();
 
-    if(namedTopics && (N != topic1names.size() || N != topic2names.size())) {
-        cerr << "Named topics size mismatch: " << N << ", " << topic1names.size() << ", " << topic2names.size() << endl;
+    if(namedTopics && (N1 != topic1names.size() || N2 != topic2names.size())) {
+        cerr << "Named topics size mismatch: " << N1 << " != " << topic1names.size() << " || " << N2 << " != " << topic2names.size() << endl;
         return -1;
     }
 
@@ -193,7 +194,7 @@ int main(int argc, char **argv) {
 
     cerr << "Writing CSV" << endl;
     cout << (use_stdin ? "STDIN" : argv[1]) << "," << argv[2] << ",SIM" << endl;
-    for(unsigned i = 0; i < N || use_stdin; i++) {
+    for(unsigned i = 0; i < N1 || use_stdin; i++) {
         unique_ptr<SparseArray> t1i;
         if(use_stdin) {
             string line;
@@ -202,7 +203,7 @@ int main(int argc, char **argv) {
             }
             t1i = readTopicLine(line,linesRead);
         }        
-        for(unsigned j = 0; j < N; j++) {
+        for(unsigned j = 0; j < N2; j++) {
             double sim;
             if(use_stdin) {
                sim = cosSim(*t1i,t2[j]);

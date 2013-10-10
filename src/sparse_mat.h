@@ -130,6 +130,31 @@ class SparseMat {
             delete[] v_tmp;
         }
 
+        /*
+         * If this matrix is A calculate v_out = A^TA v_in
+         */
+        void ATA_mult(double *v_in, double *v_out) {
+            double *v_tmp = new double[M];
+            memset(v_tmp,0,M*sizeof(double));
+            memset(v_out,0,N*sizeof(double));
+            auto it = data.begin();
+            for(unsigned i = 0; i < N; i++) {
+                for(unsigned j = cp[i]; j < cp[i+1]; j++) {
+                    v_tmp[it->idx] += v_in[i] * it->val;
+                    ++it;
+                }
+            }
+            it = data.begin();
+            for(unsigned i = 0; i < N; i++) {
+                for(unsigned j = cp[i]; j < cp[i+1]; j++) {
+                    v_out[i] += v_tmp[it->idx] * it->val;
+                    ++it;
+                }
+            }           
+            delete[] v_tmp;
+        }
+
+
         /**
          * Compute the inner product of <a_i,a_j>
          */

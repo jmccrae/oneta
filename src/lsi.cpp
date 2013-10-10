@@ -54,9 +54,9 @@ void divide(shared_ptr<vector<double>> v1, const double *v2) {
 
 /**
  * Calculate the top K eigendecompsition of AAT
- * @param A sparse matrix
- * @param The number of LSI topics 0 < K <= M.N
- * @param The vector to write the eigenvalues to. eval = new double[K];
+ * @param M A sparse matrix
+ * @param K The number of LSI topics 0 < K <= M.N
+ * @param eval The vector to write the eigenvalues to. eval = new double[K];
  * @return The array of vectors
  */
 double *arpack_sym_eig(SparseMat& M, int K, double *eval, char *tmpname) {

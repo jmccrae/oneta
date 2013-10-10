@@ -8,6 +8,7 @@ add_executable(bin/sim-csv src/sim-csv.cpp)
 add_executable(bin/lsi src/lsi.cpp)
 add_executable(bin/oneta src/oneta-gsl.cpp)
 add_executable(bin/lda src/lda.cpp)
+add_executable(bin/translator-train src/translator-train.cpp)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "-O2 --std=c++0x -Wall")        ## Optimize

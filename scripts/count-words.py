@@ -22,7 +22,7 @@ def main():
            count += 1
   sys.stderr.write("\n")
   
-  print(words.size)
+  print(len(words))
 
 if __name__ == "__main__":
     main()
