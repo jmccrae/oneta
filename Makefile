@@ -190,17 +190,17 @@ bin/test/arpack-test/fast:
 .PHONY : bin/test/arpack-test/fast
 
 #=============================================================================
-# Target rules for targets named bin/test/translator-train-test
+# Target rules for targets named bin/test/translation-test
 
 # Build rule for target.
-bin/test/translator-train-test: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 bin/test/translator-train-test
-.PHONY : bin/test/translator-train-test
+bin/test/translation-test: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 bin/test/translation-test
+.PHONY : bin/test/translation-test
 
 # fast build rule for target.
-bin/test/translator-train-test/fast:
-	$(MAKE) -f CMakeFiles/bin/test/translator-train-test.dir/build.make CMakeFiles/bin/test/translator-train-test.dir/build
-.PHONY : bin/test/translator-train-test/fast
+bin/test/translation-test/fast:
+	$(MAKE) -f CMakeFiles/bin/test/translation-test.dir/build.make CMakeFiles/bin/test/translation-test.dir/build
+.PHONY : bin/test/translation-test/fast
 
 #=============================================================================
 # Target rules for targets named bin/translator-train
@@ -365,6 +365,33 @@ src/sim-csv.cpp.s:
 	$(MAKE) -f CMakeFiles/bin/sim-csv.dir/build.make CMakeFiles/bin/sim-csv.dir/src/sim-csv.cpp.s
 .PHONY : src/sim-csv.cpp.s
 
+src/translation.o: src/translation.cpp.o
+.PHONY : src/translation.o
+
+# target to build an object file
+src/translation.cpp.o:
+	$(MAKE) -f CMakeFiles/bin/test/translation-test.dir/build.make CMakeFiles/bin/test/translation-test.dir/src/translation.cpp.o
+	$(MAKE) -f CMakeFiles/bin/translator-train.dir/build.make CMakeFiles/bin/translator-train.dir/src/translation.cpp.o
+.PHONY : src/translation.cpp.o
+
+src/translation.i: src/translation.cpp.i
+.PHONY : src/translation.i
+
+# target to preprocess a source file
+src/translation.cpp.i:
+	$(MAKE) -f CMakeFiles/bin/test/translation-test.dir/build.make CMakeFiles/bin/test/translation-test.dir/src/translation.cpp.i
+	$(MAKE) -f CMakeFiles/bin/translator-train.dir/build.make CMakeFiles/bin/translator-train.dir/src/translation.cpp.i
+.PHONY : src/translation.cpp.i
+
+src/translation.s: src/translation.cpp.s
+.PHONY : src/translation.s
+
+# target to generate assembly for a file
+src/translation.cpp.s:
+	$(MAKE) -f CMakeFiles/bin/test/translation-test.dir/build.make CMakeFiles/bin/test/translation-test.dir/src/translation.cpp.s
+	$(MAKE) -f CMakeFiles/bin/translator-train.dir/build.make CMakeFiles/bin/translator-train.dir/src/translation.cpp.s
+.PHONY : src/translation.cpp.s
+
 src/translator-train.o: src/translator-train.cpp.o
 .PHONY : src/translator-train.o
 
@@ -413,29 +440,29 @@ test/arpack-test.cpp.s:
 	$(MAKE) -f CMakeFiles/bin/test/arpack-test.dir/build.make CMakeFiles/bin/test/arpack-test.dir/test/arpack-test.cpp.s
 .PHONY : test/arpack-test.cpp.s
 
-test/translator-train-test.o: test/translator-train-test.cpp.o
-.PHONY : test/translator-train-test.o
+test/translation-test.o: test/translation-test.cpp.o
+.PHONY : test/translation-test.o
 
 # target to build an object file
-test/translator-train-test.cpp.o:
-	$(MAKE) -f CMakeFiles/bin/test/translator-train-test.dir/build.make CMakeFiles/bin/test/translator-train-test.dir/test/translator-train-test.cpp.o
-.PHONY : test/translator-train-test.cpp.o
+test/translation-test.cpp.o:
+	$(MAKE) -f CMakeFiles/bin/test/translation-test.dir/build.make CMakeFiles/bin/test/translation-test.dir/test/translation-test.cpp.o
+.PHONY : test/translation-test.cpp.o
 
-test/translator-train-test.i: test/translator-train-test.cpp.i
-.PHONY : test/translator-train-test.i
+test/translation-test.i: test/translation-test.cpp.i
+.PHONY : test/translation-test.i
 
 # target to preprocess a source file
-test/translator-train-test.cpp.i:
-	$(MAKE) -f CMakeFiles/bin/test/translator-train-test.dir/build.make CMakeFiles/bin/test/translator-train-test.dir/test/translator-train-test.cpp.i
-.PHONY : test/translator-train-test.cpp.i
+test/translation-test.cpp.i:
+	$(MAKE) -f CMakeFiles/bin/test/translation-test.dir/build.make CMakeFiles/bin/test/translation-test.dir/test/translation-test.cpp.i
+.PHONY : test/translation-test.cpp.i
 
-test/translator-train-test.s: test/translator-train-test.cpp.s
-.PHONY : test/translator-train-test.s
+test/translation-test.s: test/translation-test.cpp.s
+.PHONY : test/translation-test.s
 
 # target to generate assembly for a file
-test/translator-train-test.cpp.s:
-	$(MAKE) -f CMakeFiles/bin/test/translator-train-test.dir/build.make CMakeFiles/bin/test/translator-train-test.dir/test/translator-train-test.cpp.s
-.PHONY : test/translator-train-test.cpp.s
+test/translation-test.cpp.s:
+	$(MAKE) -f CMakeFiles/bin/test/translation-test.dir/build.make CMakeFiles/bin/test/translation-test.dir/test/translation-test.cpp.s
+.PHONY : test/translation-test.cpp.s
 
 # Help Target
 help:
@@ -449,7 +476,7 @@ help:
 	@echo "... bin/oneta"
 	@echo "... bin/sim-csv"
 	@echo "... bin/test/arpack-test"
-	@echo "... bin/test/translator-train-test"
+	@echo "... bin/test/translation-test"
 	@echo "... bin/translator-train"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
@@ -472,15 +499,18 @@ help:
 	@echo "... src/sim-csv.o"
 	@echo "... src/sim-csv.i"
 	@echo "... src/sim-csv.s"
+	@echo "... src/translation.o"
+	@echo "... src/translation.i"
+	@echo "... src/translation.s"
 	@echo "... src/translator-train.o"
 	@echo "... src/translator-train.i"
 	@echo "... src/translator-train.s"
 	@echo "... test/arpack-test.o"
 	@echo "... test/arpack-test.i"
 	@echo "... test/arpack-test.s"
-	@echo "... test/translator-train-test.o"
-	@echo "... test/translator-train-test.i"
-	@echo "... test/translator-train-test.s"
+	@echo "... test/translation-test.o"
+	@echo "... test/translation-test.i"
+	@echo "... test/translation-test.s"
 .PHONY : help
 
 

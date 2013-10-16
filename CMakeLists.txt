@@ -9,10 +9,10 @@ add_executable(bin/sim-csv src/sim-csv.cpp)
 add_executable(bin/lsi src/lsi.cpp src/arpack.cpp)
 add_executable(bin/oneta src/oneta-gsl.cpp)
 add_executable(bin/lda src/lda.cpp)
-add_executable(bin/translator-train src/translator-train.cpp src/arpack.cpp)
+add_executable(bin/translator-train src/translator-train.cpp src/arpack.cpp src/translation.cpp)
 
-add_executable(bin/test/translator-train-test test/translator-train-test.cpp)
 add_executable(bin/test/arpack-test test/arpack-test.cpp src/arpack.cpp)
+add_executable(bin/test/translation-test test/translation-test.cpp src/translation.cpp)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "-O2 --std=c++0x -Wall")        ## Optimize
@@ -20,5 +20,5 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 enable_testing()
-add_test(TranslatorTrain bin/test/translator-train-test)
+add_test(TranslationTest bin/test/translation-test)
 add_test(ArpackTest bin/test/arpack-test)
