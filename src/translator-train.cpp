@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <unordered_map>
+#include <set>
 #include "sparse_mat.h"
 #ifdef DEBUG
 #define BACKWARD_HAS_BFD 1
@@ -111,6 +112,52 @@ TranslationMapPtr buildTranslationMap(char *fName) {
     return transMap;
 }
 
+shared_ptr<set<string>> transSourceWords(TranslationMapPtr transMap) {
+    auto words = make_shared<set<string>>();
+    for(auto it = transMap->begin(); it != transMap->end(); ++it) {
+        words->insert(it->first);
+    }
+    return words;
+}
+
+shared_ptr<set<string>> transTargetWords(TranslationMapPtr transMap) {
+    auto words = make_shared<set<string>>();
+    for(auto it = transMap->begin(); it != transMap->end(); ++it) {
+        for(auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+            words->insert(it2->first);
+        }
+    }
+    return words;
+}
+
+void invertWordMap(unordered_map<string,int>& wordMap, vector<string>& invMap) {
+    for(auto it = wordMap.begin(); it != wordMap.end(); ++it) {
+        invMap[it->second] = it->first;
+    }
+}
+
+shared_ptr<SparseMat> filterSparseMatrix(shared_ptr<SparseMat> X, shared_ptr<set<string>> trans, vector<string>& wordIds) {
+    vector<unsigned> remapping(wordIds.size());
+    fill(remapping.begin(),remapping.end(),0);
+    unsigned j = 1;
+    for(unsigned i = 0; i < wordIds.size(); i++) {
+        if(trans->find(wordIds[i]) != trans->end()) {
+            remapping[i] = j++;
+        }
+    }
+    auto X_ = make_shared<SparseMat>(X->M,X->N);
+    for(unsigned i = 0; i < X->N; i++) {
+        map<int,double> colData;
+        for(unsigned j = X->cp[i]; j < X->cp[i+1]; j++) {
+            auto elem = X->data[j];
+            if(remapping[elem.idx] != 0) {
+                colData.insert(pair<int,double>(remapping[elem.idx],elem.val));
+            }
+        }
+        X_->add_col(i,colData);
+    }
+    return X_;
+}
 
 double *arpack_sym_eig(shared_ptr<SparseMat> M, int K, double *eval) {
     cout << "Preparing ARPACK" << endl;
@@ -197,9 +244,9 @@ double *word2vec(shared_ptr<SparseMat> C, double *eval, double *evectors, int K,
     memset(X,0,K * W * sizeof(double));
     for(int i = 0; i < K; i++) {
         for(int j = 0; j < N; j++) {
-            for(int y = C->cp[j]; y < C->cp[j+1]; y++) {
+            for(unsigned y = C->cp[j]; y < C->cp[j+1]; y++) {
                 auto d = C->data[y];
-                X[i,d.idx] += eval[i] * evectors[j * N + i] * d.val;
+                X[i * K + d.idx] += eval[i] * evectors[j * N + i] * d.val;
             }
         }
     }
@@ -254,10 +301,10 @@ int main(int argc, char** argv) {
 
     cerr << words1.size() << " " << words2.size() << endl;
 
+    auto T = buildTranslationMap(argv[3]);
+
     auto C1 = buildTDM(argv[1],N1,words1);
     auto C2 = buildTDM(argv[2],N2,words2);
-
-    auto T = buildTranslationMap(argv[3]);
 
     double eval[K];
 
@@ -271,6 +318,16 @@ int main(int argc, char** argv) {
     }
 
     auto X = word2vec(C1,eval,v,K,words1.size(),N1);
+
+    auto srcWords = transSourceWords(T);
+
+    vector<string> invWordMap1(words1.size());
+
+    invertWordMap(words1,invWordMap1);
+
+    auto X_ = filterSparseMatrix(C1,srcWords,invWordMap1);
+
+
 
     /*for(int i = 0; i < words1.size() * K; i++) {
         cerr << X[i] << endl;
