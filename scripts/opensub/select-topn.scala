@@ -17,7 +17,7 @@ def realI(j : Int) = if(j < testN) {
   j
 }
 
-for(file <- new File("OpenSubtitles2012/docs/").listFiles.sortBy(_.getName())) {
+for(file <- new File("OpenSubtitles2012/dedup/").listFiles.sortBy(_.getName())) {
   if(file.getPath() endsWith (lang1 + ".txt")) {
     if(topN contains realI(i)) {
       io.Source.fromFile(file.getPath()).getLines.foreach(out1.println(_))

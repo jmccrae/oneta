@@ -19,7 +19,7 @@ if(!srcFile.exists || !trgFile.exists) {
 
 val nLines = io.Source.fromFile(srcFile).getLines.size
 
-val heldOut = nLines * math.random toInt
+val heldOut = (nLines * math.random).toInt
 
 holdOut.println(heldOut)
 holdOut.flush
