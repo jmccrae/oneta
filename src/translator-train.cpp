@@ -4,7 +4,8 @@
 #include <sstream>
 #include <unordered_map>
 #include <set>
-#include "sparse_mat.h"
+#include "arpack.h"
+
 #ifdef DEBUG
 #define BACKWARD_HAS_BFD 1
 #include "backward.hpp"
@@ -15,19 +16,13 @@ namespace backward {
 
 using namespace std;
 
-//--------interfaces to arpack (fortran) routines---------
-extern "C" void dsaupd_(int *ido, char *bmat, int *n, char *which, int *nev, double *tol, double *resid, int *ncv, double *v, int *ldv, int *iparam, 
-			int *ipntr, double *workd, double *workl, int *lworkl, int *info);
-
-extern "C" void dseupd_(int *rvec, const char *howmany, int *select, double *d,
-			double *z, int *ldz, double *sigma, char *bmat, 
-			int *n, char *which, int *nev, double *tol, 
-			double *resid, int *ncv, double *v, int *ldv, 
-			int *iparam, int *ipntr, double *workd, double *workl, 
-			int *lworkl, int *info);
-//-----------------------------------------------		
-
-
+/**
+ * Count the number of unique tokens and documents in the corpus and build the word map
+ * @param fName The file name of the corpus
+ * @param N The value to set for the number of documents
+ * @param words The map to fill with the indices of words
+ * @return False if the method did not succeed (i.e., the file name did not exist)
+ */
 bool countCorpus(char *fName, int *N, unordered_map<string,int>& words) {
     ifstream corpus(fName);
     
@@ -53,6 +48,13 @@ bool countCorpus(char *fName, int *N, unordered_map<string,int>& words) {
     return true;
 }
 
+/**
+ * Build a term-document sparse matrix from the corpus
+ * @param fName The file name of the corpus
+ * @param N The number of documents (lines) in the corpus
+ * @param words The word map
+ * @return The matrix
+ */
 shared_ptr<SparseMat> buildTDM(char *fName, int N, unordered_map<string,int>& words) {
     ifstream corpus(fName);
     string line;
@@ -89,6 +91,13 @@ shared_ptr<SparseMat> buildTDM(char *fName, int N, unordered_map<string,int>& wo
 typedef map<string,vector<pair<string,double>>> TranslationMap;
 typedef shared_ptr<map<string,vector<pair<string,double>>>> TranslationMapPtr;
 
+/**
+ * Build the translation function from the CSV file of the format
+ *   srcWord,trgWord,weight
+ * @param fName The file name
+ * @return The translation map: a map where each source word is linked to a list of 
+ * translation/score pairs
+ */
 TranslationMapPtr buildTranslationMap(char *fName) {
     ifstream csvFile(fName);
     auto transMap = make_shared<TranslationMap>();
@@ -112,6 +121,11 @@ TranslationMapPtr buildTranslationMap(char *fName) {
     return transMap;
 }
 
+/**
+ * Reduce a translation map to just the source words
+ * @param The translation words
+ * @return The set of source words
+ */
 shared_ptr<set<string>> transSourceWords(TranslationMapPtr transMap) {
     auto words = make_shared<set<string>>();
     for(auto it = transMap->begin(); it != transMap->end(); ++it) {
@@ -120,6 +134,11 @@ shared_ptr<set<string>> transSourceWords(TranslationMapPtr transMap) {
     return words;
 }
 
+/**
+ * Reduce the translation map to just the target words
+ * @param The translation words
+ * @return The set of target words
+ */
 shared_ptr<set<string>> transTargetWords(TranslationMapPtr transMap) {
     auto words = make_shared<set<string>>();
     for(auto it = transMap->begin(); it != transMap->end(); ++it) {
@@ -130,12 +149,20 @@ shared_ptr<set<string>> transTargetWords(TranslationMapPtr transMap) {
     return words;
 }
 
+/**
+ * Convert the word map to a list of words (where the ith element is that with idx i)
+ * @param wordMap The word map to read from
+ * @param invMap The list to write, must already be initialized to correct size
+ */
 void invertWordMap(unordered_map<string,int>& wordMap, vector<string>& invMap) {
     for(auto it = wordMap.begin(); it != wordMap.end(); ++it) {
         invMap[it->second] = it->first;
     }
 }
 
+/**
+ * Taking a sparse matrix, which is index by the words in wordsIds, filter so that it only
+ * contains columns 
 shared_ptr<SparseMat> filterSparseMatrix(shared_ptr<SparseMat> X, shared_ptr<set<string>> trans, vector<string>& wordIds) {
     vector<unsigned> remapping(wordIds.size());
     fill(remapping.begin(),remapping.end(),0);
@@ -145,7 +172,27 @@ shared_ptr<SparseMat> filterSparseMatrix(shared_ptr<SparseMat> X, shared_ptr<set
             remapping[i] = j++;
         }
     }
-    auto X_ = make_shared<SparseMat>(X->M,X->N);
+    auto X_ = make_shared<SparseMat>(j-1,X->N);
+    for(unsigned i = 0; i < X->N; i++) {
+        for(unsigned w = 0; w < wordIds.size(); w++) {
+            if(remapping[elem.idx] != 0) {
+                X_[i * K + w] = X[i * K + remapping[w]];
+            }
+        }
+    }
+    return X_;
+}
+
+double * filterDenseMatrix(double *X, shared_ptr<set<string>> trans, vector<string>& wordIds, int K) {
+    vector<unsigned> remapping(wordIds.size());
+    fill(remapping.begin(),remapping.end(),0);
+    unsigned j = 1;
+    for(unsigned i = 0; i < wordIds.size(); i++) {
+        if(trans->find(wordIds[i]) != trans->end()) {
+            remapping[i] = j++;
+        }
+    }
+    auto X = new double[K * (j-1)];
     for(unsigned i = 0; i < X->N; i++) {
         map<int,double> colData;
         for(unsigned j = X->cp[i]; j < X->cp[i+1]; j++) {
@@ -157,87 +204,7 @@ shared_ptr<SparseMat> filterSparseMatrix(shared_ptr<SparseMat> X, shared_ptr<set
         X_->add_col(i,colData);
     }
     return X_;
-}
-
-double *arpack_sym_eig(shared_ptr<SparseMat> M, int K, double *eval) {
-    cout << "Preparing ARPACK" << endl;
-    int ido = 0; 
-    int n = M->M;
-    char bmat[2] = "I"; /* standard symmetric eigenvalue problem*/
-    char which[3] = "LA"; /* Largest eigenvalue*/
-
-    double tol = 0.0; /* Machine precision*/
-    double *resid=new double[n];
-    int ncv = 2*K; 
-    if(ncv>n){
-        ncv = n;
-    }
-    int ldv=n;
-    cout << "Alloc v (" << (ldv*ncv) << " elements)" << endl;
-    double *v=new double[ldv*ncv];
-    cout << "ok" << endl;
-    int *iparam=new int[11];
-    iparam[0] = 1;   // Specifies the shift strategy (1->exact)
-    iparam[2] = 3*n; // Maximum number of iterations
-    iparam[6] = 1;   /* Sets the mode of dsaupd.
-		      1 is exact shifting,
-                      2 is user-supplied shifts,
-		      3 is shift-invert mode,
-		      4 is buckling mode,
-		      5 is Cayley mode. */
-
-    int *ipntr=new int[11];
-    double *workd=new double[3*n];
-    cout << "Alloc workl (" << (ncv*(ncv+8)) << " elements)" << endl;
-    double *workl=new double[ncv*(ncv+8)];
-    cout << "ok" << endl;
-    int lworkl = ncv*(ncv+8); /* Length of the workl array */
-    int info = 0; /* Passes convergence information out of the iteration
-					routine. */
-    int rvec = 1; /* Specifies that eigenvectors should be calculated */
-    int *select=new int[ncv];
-    double *d=new double[2*ncv];
-    cout << "OK" << endl;
-
-    do {
-        dsaupd_(&ido, bmat, &n, which, &K, &tol, resid, &ncv, v, &ldv, iparam, ipntr, workd, workl, &lworkl, &info);
-        if ((ido==1)||(ido==-1)){
-            M->ATA_mult(workd+ipntr[0]-1,workd+ipntr[1]-1);
-        }
-        cout << ".";
-        cout.flush();
-    } while((ido==1)||(ido==-1));
-
-    cout << endl;
-    if (info<0) {
-        cerr << "Error [dsaupd], info = " << info << "\n";
-        throw "ARPACK failed";
-    } else {
-        double sigma;
-        int ierr;
-        dseupd_(&rvec, "All", select, d, v, &ldv, &sigma, bmat, &n, which, &K, &tol, resid, &ncv, v, &ldv, iparam, ipntr, workd, workl, &lworkl, &ierr);
-
-        if(ierr!=0){
-            cout << "Error [dseupd], info = " << ierr << "\n";	
-        }else if(info==1){
-            cout << "Maximum number of iterations reached.\n\n";
-        }else if(info==3){
-            cout << "No shifts could be applied during implicit\n";
-            cout << "Arnoldi update, try increasing NCV.\n\n";
-        }
-        memcpy(eval, d, sizeof(double)*K);
-        //memcpy(evec, v, sizeof(double)*K*n);
-    }
-    cout << "ARPACK done" << endl;
-    delete[] resid;
-    delete[] iparam;
-    delete[] ipntr;
-    delete[] workd;
-    delete[] workl;
-    delete[] select;
-    delete[] d;
-    return v;
-}
+}*/
 
 double *word2vec(shared_ptr<SparseMat> C, double *eval, double *evectors, int K, int W, int N) {
     double *X = new double[K * W];
@@ -308,7 +275,7 @@ int main(int argc, char** argv) {
 
     double eval[K];
 
-    auto v = arpack_sym_eig(C1,K,eval);
+    auto v = arpack_sym_eig(C1,K,eval,true,NULL);
 
     for(int i = 0; i <= K; i++) {
         for(int j = i*N1; j <= (i+1)*N1; j++) {
@@ -322,16 +289,10 @@ int main(int argc, char** argv) {
     auto srcWords = transSourceWords(T);
 
     vector<string> invWordMap1(words1.size());
+    vector<string> invWordMap2(words2.size());
 
     invertWordMap(words1,invWordMap1);
-
-    auto X_ = filterSparseMatrix(C1,srcWords,invWordMap1);
-
-
-
-    /*for(int i = 0; i < words1.size() * K; i++) {
-        cerr << X[i] << endl;
-    }*/
+    invertWordMap(words2,invWordMap2);
 
     return 0;
 }

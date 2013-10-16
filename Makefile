@@ -70,6 +70,16 @@ rebuild_cache:
 rebuild_cache/fast: rebuild_cache
 .PHONY : rebuild_cache/fast
 
+# Special rule for the target test
+test:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running tests..."
+	/usr/bin/ctest --force-new-ctest-process $(ARGS)
+.PHONY : test
+
+# Special rule for the target test
+test/fast: test
+.PHONY : test/fast
+
 # The main all target
 all: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/jmccrae/projects/oneta/CMakeFiles /home/jmccrae/projects/oneta/CMakeFiles/progress.marks
@@ -167,6 +177,32 @@ bin/sim-csv/fast:
 .PHONY : bin/sim-csv/fast
 
 #=============================================================================
+# Target rules for targets named bin/test/arpack-test
+
+# Build rule for target.
+bin/test/arpack-test: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 bin/test/arpack-test
+.PHONY : bin/test/arpack-test
+
+# fast build rule for target.
+bin/test/arpack-test/fast:
+	$(MAKE) -f CMakeFiles/bin/test/arpack-test.dir/build.make CMakeFiles/bin/test/arpack-test.dir/build
+.PHONY : bin/test/arpack-test/fast
+
+#=============================================================================
+# Target rules for targets named bin/test/translator-train-test
+
+# Build rule for target.
+bin/test/translator-train-test: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 bin/test/translator-train-test
+.PHONY : bin/test/translator-train-test
+
+# fast build rule for target.
+bin/test/translator-train-test/fast:
+	$(MAKE) -f CMakeFiles/bin/test/translator-train-test.dir/build.make CMakeFiles/bin/test/translator-train-test.dir/build
+.PHONY : bin/test/translator-train-test/fast
+
+#=============================================================================
 # Target rules for targets named bin/translator-train
 
 # Build rule for target.
@@ -178,6 +214,36 @@ bin/translator-train: cmake_check_build_system
 bin/translator-train/fast:
 	$(MAKE) -f CMakeFiles/bin/translator-train.dir/build.make CMakeFiles/bin/translator-train.dir/build
 .PHONY : bin/translator-train/fast
+
+src/arpack.o: src/arpack.cpp.o
+.PHONY : src/arpack.o
+
+# target to build an object file
+src/arpack.cpp.o:
+	$(MAKE) -f CMakeFiles/bin/lsi.dir/build.make CMakeFiles/bin/lsi.dir/src/arpack.cpp.o
+	$(MAKE) -f CMakeFiles/bin/test/arpack-test.dir/build.make CMakeFiles/bin/test/arpack-test.dir/src/arpack.cpp.o
+	$(MAKE) -f CMakeFiles/bin/translator-train.dir/build.make CMakeFiles/bin/translator-train.dir/src/arpack.cpp.o
+.PHONY : src/arpack.cpp.o
+
+src/arpack.i: src/arpack.cpp.i
+.PHONY : src/arpack.i
+
+# target to preprocess a source file
+src/arpack.cpp.i:
+	$(MAKE) -f CMakeFiles/bin/lsi.dir/build.make CMakeFiles/bin/lsi.dir/src/arpack.cpp.i
+	$(MAKE) -f CMakeFiles/bin/test/arpack-test.dir/build.make CMakeFiles/bin/test/arpack-test.dir/src/arpack.cpp.i
+	$(MAKE) -f CMakeFiles/bin/translator-train.dir/build.make CMakeFiles/bin/translator-train.dir/src/arpack.cpp.i
+.PHONY : src/arpack.cpp.i
+
+src/arpack.s: src/arpack.cpp.s
+.PHONY : src/arpack.s
+
+# target to generate assembly for a file
+src/arpack.cpp.s:
+	$(MAKE) -f CMakeFiles/bin/lsi.dir/build.make CMakeFiles/bin/lsi.dir/src/arpack.cpp.s
+	$(MAKE) -f CMakeFiles/bin/test/arpack-test.dir/build.make CMakeFiles/bin/test/arpack-test.dir/src/arpack.cpp.s
+	$(MAKE) -f CMakeFiles/bin/translator-train.dir/build.make CMakeFiles/bin/translator-train.dir/src/arpack.cpp.s
+.PHONY : src/arpack.cpp.s
 
 src/lda.o: src/lda.cpp.o
 .PHONY : src/lda.o
@@ -323,6 +389,54 @@ src/translator-train.cpp.s:
 	$(MAKE) -f CMakeFiles/bin/translator-train.dir/build.make CMakeFiles/bin/translator-train.dir/src/translator-train.cpp.s
 .PHONY : src/translator-train.cpp.s
 
+test/arpack-test.o: test/arpack-test.cpp.o
+.PHONY : test/arpack-test.o
+
+# target to build an object file
+test/arpack-test.cpp.o:
+	$(MAKE) -f CMakeFiles/bin/test/arpack-test.dir/build.make CMakeFiles/bin/test/arpack-test.dir/test/arpack-test.cpp.o
+.PHONY : test/arpack-test.cpp.o
+
+test/arpack-test.i: test/arpack-test.cpp.i
+.PHONY : test/arpack-test.i
+
+# target to preprocess a source file
+test/arpack-test.cpp.i:
+	$(MAKE) -f CMakeFiles/bin/test/arpack-test.dir/build.make CMakeFiles/bin/test/arpack-test.dir/test/arpack-test.cpp.i
+.PHONY : test/arpack-test.cpp.i
+
+test/arpack-test.s: test/arpack-test.cpp.s
+.PHONY : test/arpack-test.s
+
+# target to generate assembly for a file
+test/arpack-test.cpp.s:
+	$(MAKE) -f CMakeFiles/bin/test/arpack-test.dir/build.make CMakeFiles/bin/test/arpack-test.dir/test/arpack-test.cpp.s
+.PHONY : test/arpack-test.cpp.s
+
+test/translator-train-test.o: test/translator-train-test.cpp.o
+.PHONY : test/translator-train-test.o
+
+# target to build an object file
+test/translator-train-test.cpp.o:
+	$(MAKE) -f CMakeFiles/bin/test/translator-train-test.dir/build.make CMakeFiles/bin/test/translator-train-test.dir/test/translator-train-test.cpp.o
+.PHONY : test/translator-train-test.cpp.o
+
+test/translator-train-test.i: test/translator-train-test.cpp.i
+.PHONY : test/translator-train-test.i
+
+# target to preprocess a source file
+test/translator-train-test.cpp.i:
+	$(MAKE) -f CMakeFiles/bin/test/translator-train-test.dir/build.make CMakeFiles/bin/test/translator-train-test.dir/test/translator-train-test.cpp.i
+.PHONY : test/translator-train-test.cpp.i
+
+test/translator-train-test.s: test/translator-train-test.cpp.s
+.PHONY : test/translator-train-test.s
+
+# target to generate assembly for a file
+test/translator-train-test.cpp.s:
+	$(MAKE) -f CMakeFiles/bin/test/translator-train-test.dir/build.make CMakeFiles/bin/test/translator-train-test.dir/test/translator-train-test.cpp.s
+.PHONY : test/translator-train-test.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -334,9 +448,15 @@ help:
 	@echo "... bin/mate-finding"
 	@echo "... bin/oneta"
 	@echo "... bin/sim-csv"
+	@echo "... bin/test/arpack-test"
+	@echo "... bin/test/translator-train-test"
 	@echo "... bin/translator-train"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... test"
+	@echo "... src/arpack.o"
+	@echo "... src/arpack.i"
+	@echo "... src/arpack.s"
 	@echo "... src/lda.o"
 	@echo "... src/lda.i"
 	@echo "... src/lda.s"
@@ -355,6 +475,12 @@ help:
 	@echo "... src/translator-train.o"
 	@echo "... src/translator-train.i"
 	@echo "... src/translator-train.s"
+	@echo "... test/arpack-test.o"
+	@echo "... test/arpack-test.i"
+	@echo "... test/arpack-test.s"
+	@echo "... test/translator-train-test.o"
+	@echo "... test/translator-train-test.i"
+	@echo "... test/translator-train-test.s"
 .PHONY : help
 
 

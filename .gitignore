@@ -5,6 +5,8 @@ data/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
+CTestTestfile.cmake
 out
 tmp*
 working/
+Testing/

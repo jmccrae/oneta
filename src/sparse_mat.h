@@ -3,6 +3,7 @@
 #include <memory>
 #include <map>
 #include <iostream>
+#include <cstring>
 
 /**
  * Sparse Array element is simply an idx and a value
