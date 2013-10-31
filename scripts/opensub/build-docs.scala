@@ -10,6 +10,8 @@ var fromOut : PrintWriter = null
 var toOut : PrintWriter = null
 val prefix = "OpenSubtitles2012/filtered/"
 val out    = "OpenSubtitles2012/docs/"
+val lang1 = args(0)
+val lang2 = args(1)
 
 new java.io.File(out).mkdirs
 
@@ -35,6 +37,8 @@ def doAlign(in : Iterator[String], out : PrintWriter, idxs : String) = {
     }
 }
 
+var n = 0
+
 io.Source.stdin.getLines.foreach {
     case docStartLine(from,to) => {
         Option(fromOut).map(_.flush)
@@ -43,10 +47,9 @@ io.Source.stdin.getLines.foreach {
         Option(toOut).map(_.close)
         fromFile = io.Source.fromInputStream(new GZIPInputStream(new FileInputStream(prefix+from))).getLines
         toFile = io.Source.fromInputStream(new GZIPInputStream(new FileInputStream(prefix+to))).getLines
-        new File(out + from).getParentFile().mkdirs
-        new File(out + to).getParentFile().mkdirs
-        fromOut = new PrintWriter(out + changeSuffix(from))
-        toOut = new PrintWriter(out + changeSuffix(to))
+        fromOut = new PrintWriter(out + "doc" + n + "." + lang1 + ".txt")
+        toOut = new PrintWriter(out + "doc" + n + "." + lang2 + ".txt")
+        n += 1
     }
     case alignLine(f,t) => {
         fromFile = doAlign(fromFile,fromOut,f)
