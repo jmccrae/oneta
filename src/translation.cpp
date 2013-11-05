@@ -189,21 +189,73 @@ void invertWordMap(unordered_map<string,int>& wordMap, vector<string>& invMap) {
     }
 }
 
-/**
- * Construct the matrix X = S^{-1} V C^T T
- * @param eval The eigenvalues (S)
- * @param evec The eigenvectors (V)
- * @param K The dimension of S
- * @param N The columns of of the eigenvectors
- * @param V The output number of columns
- * @param corpus The corpus as sparse matrix (C)
- * @param transMap The translation function (T)
+
+shared_ptr<gsl_matrix> monoKernel(double *evectors, int K,
+        TranslationMapPtr translationMap, TranslationMapPtr invTranslationMap, unordered_map<string,int>& wordMap) {
+    auto words = transSourceWords(translationMap);
+    auto M = shared_ptr<gsl_matrix>(gsl_matrix_alloc(K,K));
+
+    for(int k = 0; k < K; k++) {
+        for(int k2 = 0; k2< K; k2++) {
+            double v = 0.0;
+            for(auto word : *words) {
+                auto w = wordMap[word];
+                auto translations = &translationMap->at(word);
+                for(auto it = translations->begin(); it != translations->end(); ++it) {
+                    auto invTranslations = &invTranslationMap->at(it->first);
+                    for(auto it2 = invTranslations->begin(); it2 != invTranslations->end(); ++it2) {
+                        auto w2 = wordMap[it2->first];
+                        v += evectors[w * K + k] * it->second * it2->second * evectors[w2 * K + k2];
+                    }
+                }
+            }
+            gsl_matrix_set(M.get(),k,k2,v);
+        }
+    }
+    return M;
+}
+
+shared_ptr<gsl_matrix> biKernel(double *evectorsSrc, double *evectorsTrg, int K,
+        TranslationMapPtr translationMap, unordered_map<string,int>& wordMap1,
+        unordered_map<string,int>& wordMap2) {
+    auto M = shared_ptr<gsl_matrix>(gsl_matrix_alloc(K,K));
+
+    for(int k = 0; k < K; k++) {
+        for(int k2 = 0; k2 < K; k2++) {
+            double v = 0.0;
+            for(auto it = translationMap->begin(); it != translationMap->end(); ++it) {
+                auto w1 = wordMap1[it->first];
+                for(auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+                    auto w2 = wordMap2[it2->first];
+                    v += evectorsSrc[w1 * K + k] * it2->second * evectorsTrg[w2 * K + k2];
+                }
+            }
+            gsl_matrix_set(M.get(),k,k2,v);
+        }
+    }
+    return M;
+}
+
+
+/** Invert a translation map
+ * @param The translation map
+ * @return The inverted map
  */
-/*void buildProjectedVectorMatrix(double *eval, double *evec, int K, int N, int V, shared_ptr<SparseMat> corpus, TranslationMapPtr transMap) {
-    double *X = new double[K * V];
-    memset(X,0,K*V*sizeof(double));
-    for(int i = 0; i < K; i++) {
-        for(int n = 0; n < N; n++) {
-            for(int w = corpus->cp[n]; w < corpus->cp[n+1]; w++) {
-                auto key = corpus->data[w].first;
-*/
+TranslationMapPtr inverseMap(TranslationMapPtr map) {
+    auto invMap = make_shared<TranslationMap>();
+
+    for(auto it = map->begin(); it != map->end(); ++it) {
+        auto f = it->first;
+        for(auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+            if(invMap->find(it2->first) != invMap->end()) {
+                invMap->at(it2->first).push_back(pair<string,double>(f,it2->second));
+            } else {
+                vector<pair<string,double>> vec;
+                vec.push_back(pair<string,double>(f,it2->second));
+                invMap->insert(pair<string,vector<pair<string,double>>>(it2->first,vec));
+            }
+        }
+    }
+
+    return invMap;
+}

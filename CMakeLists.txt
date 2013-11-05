@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 2.6)
 project (oneta)
 link_libraries(arpack)
 link_libraries(gsl)
+link_libraries(gslcblas) # On some platforms GSL needs this
 make_directory(bin)
 make_directory(bin/test)
 add_executable(bin/mate-finding src/mate-finding.cpp)
