@@ -1,14 +1,19 @@
-scala scripts/opensub/build-for-oneta.scala en
-scala scripts/opensub/build-for-oneta.scala de
+l1=en
+l1Name=english
+l2=de
+l2Name=german
 
-mv docs.en data/OpenSubtitles/
-mv docs.de data/OpenSubtitles/
+scala scripts/opensub/build-for-oneta.scala $l1
+scala scripts/opensub/build-for-oneta.scala $l2
+
+mv docs.$l1 data/OpenSubtitles/
+mv docs.$l2 data/OpenSubtitles/
 
 #scala scripts/deduplicate.scala data/OpenSubtitles/docs.en data/OpenSubtitles/docs.de 0.99 data/OpenSubtitles/docs.dedup.en data/OpenSubtitles/docs.dedup.de data/OpenSubtitles/dedups
 
-scala scripts/opensub/hold-out-one.scala data/OpenSubtitles/docs en de
+scala scripts/opensub/hold-out-one.scala data/OpenSubtitles/docs $l1 $l2
 
-python scripts/normalize-corpus.py english < data/OpenSubtitles/docs.train.en > data/OpenSubtitles/docs.train.norm.en
-python scripts/normalize-corpus.py german < data/OpenSubtitles/docs.train.de > data/OpenSubtitles/docs.train.norm.de
-python scripts/normalize-corpus.py english < data/OpenSubtitles/docs.test.en > data/OpenSubtitles/docs.test.norm.en
-python scripts/normalize-corpus.py german < data/OpenSubtitles/docs.test.de > data/OpenSubtitles/docs.test.norm.de
+python scripts/normalize-corpus.py $l1Name < data/OpenSubtitles/docs.train.$l1 > data/OpenSubtitles/docs.train.norm.$l1
+python scripts/normalize-corpus.py $l2Name < data/OpenSubtitles/docs.train.$l2 > data/OpenSubtitles/docs.train.norm.$l2
+python scripts/normalize-corpus.py $l1Name < data/OpenSubtitles/docs.test.$l1 > data/OpenSubtitles/docs.test.norm.$l1
+python scripts/normalize-corpus.py $l2name < data/OpenSubtitles/docs.test.$l2 > data/OpenSubtitles/docs.test.norm.$l2

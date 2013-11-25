@@ -10,6 +10,7 @@ add_executable(bin/sim-csv src/sim-csv.cpp)
 add_executable(bin/lsi src/lsi.cpp src/arpack.cpp)
 add_executable(bin/oneta src/oneta-gsl.cpp)
 add_executable(bin/lda src/lda.cpp)
+add_executable(bin/topN-cos src/topN-cos.cpp)
 add_executable(bin/translator-train src/translator-train.cpp src/arpack.cpp src/translation.cpp)
 
 add_executable(bin/test/arpack-test test/arpack-test.cpp src/arpack.cpp)

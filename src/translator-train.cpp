@@ -133,7 +133,7 @@ int main(int argc, char** argv) {
     
     auto v2 = arpack_sym_eig(C2,K,eval,true,NULL);
 
-    auto bi = biKernel(v,v2,K,T,words1,words2);
+//    auto bi = biKernel(v,v2,K,T,words1,words2);
 
     return 0;
 }
