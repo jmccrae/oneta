@@ -6,6 +6,8 @@ val tolerance = args(2).toDouble
 
 type Spectrum = Map[String,Int]
 
+def cp(f1 : String, f2 : String) = Runtime.getRuntime().exec("cp %s %s" format(f1,f2)).waitFor()
+
 def spectrum(s : String) = s.split("\\s+").groupBy(x=>x).map {
   case (x,y) => (x,y.size)
 } filter {
@@ -46,8 +48,6 @@ if(files1.size != files2.size) {
 
 val N = files1.size
 
-implicit def string2path(s : String) = new File(s).toPath()
-
 for(i <- 0 until N) {
   val l1 = ("" /: io.Source.fromFile(dataDirPath + "doc" + i + "." + lang1 + ".txt").getLines) (_+_)
   val l2 = ("" /: io.Source.fromFile(dataDirPath + "doc" + i + "." + lang2 + ".txt").getLines) (_+_)
@@ -57,9 +57,9 @@ for(i <- 0 until N) {
   val sim1 = specs1 map (s => cosine(s,s1))
   val sim2 = specs2 map (s => cosine(s,s2))
   if(!(sim1 exists (_ > tolerance)) && !(sim2 exists (_ > tolerance))) {
-    java.nio.file.Files.copy(dataDirPath + "doc" + i + "." + lang1 + ".txt",
+    cp(dataDirPath + "doc" + i + "." + lang1 + ".txt",
       outPath + "doc" + accept + "." + lang1 + ".txt")
-    java.nio.file.Files.copy(dataDirPath + "doc" + i + "." + lang2 + ".txt",
+    cp(dataDirPath + "doc" + i + "." + lang2 + ".txt",
       outPath + "doc" + accept + "." + lang2 + ".txt")
     System.err.print("+")
     specs1.append(s1)
