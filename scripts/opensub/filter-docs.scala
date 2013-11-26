@@ -14,10 +14,10 @@ io.Source.stdin.getLines.foreach {
         System.err.println(from + " // " + to)
         new File(fltLoc + from).getParentFile().mkdirs
         new File(fltLoc + to).getParentFile().mkdirs
-        cp(new File(rawLoc + from).toPath(),
-                   new File(fltLoc + from).toPath())
-        cp(new File(rawLoc + to).toPath(),
-                   new File(fltLoc + to).toPath())
+        cp(new File(rawLoc + from).getPath(),
+                   new File(fltLoc + from).getPath())
+        cp(new File(rawLoc + to).getPath(),
+                   new File(fltLoc + to).getPath())
     }
     case _ => 
 }   
