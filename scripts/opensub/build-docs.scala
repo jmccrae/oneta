@@ -52,8 +52,10 @@ io.Source.stdin.getLines.foreach {
         n += 1
     }
     case alignLine(f,t) => {
+      if(f != "" && t != "") {
         fromFile = doAlign(fromFile,fromOut,f)
         toFile = doAlign(toFile,toOut,t)
+      }
     }
     case _ =>
 }      
