@@ -4,6 +4,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <set>
+#include <gsl/gsl_linalg.h>
 #include "arpack.h"
 #include "translation.h"
 
@@ -63,20 +64,6 @@ double * filterDenseMatrix(double *X, shared_ptr<set<string>> trans, vector<stri
     return X_;
 }*/
 
-double *word2vec(shared_ptr<SparseMat> C, double *eval, double *evectors, int K, int W, int N) {
-    double *X = new double[K * W];
-    memset(X,0,K * W * sizeof(double));
-    for(int i = 0; i < K; i++) {
-        for(int j = 0; j < N; j++) {
-            for(unsigned y = C->cp[j]; y < C->cp[j+1]; y++) {
-                auto d = C->data[y];
-                X[i * K + d.idx] += eval[i] * evectors[j * N + i] * d.val;
-            }
-        }
-    }
-    return X;
-}
-
 int main(int argc, char** argv) {
     // Validate arguments
     if(argc != 6) {
@@ -126,6 +113,7 @@ int main(int argc, char** argv) {
     cerr << words1.size() << " " << words2.size() << endl;
 
     auto T = buildTranslationMap(argv[3]);
+    auto Tinv = inverseMap(T);
 
     auto C1 = buildTDM(argv[1],N1,words1);
     auto C2 = buildTDM(argv[2],N2,words2);
@@ -134,22 +122,18 @@ int main(int argc, char** argv) {
 
     auto v = arpack_sym_eig(C1,K,eval,true,NULL);
 
-    for(int i = 0; i <= K; i++) {
-        for(int j = i*N1; j <= (i+1)*N1; j++) {
-            cerr << v[j] << endl;
-        }
-        cerr << endl;
-    }
-
-    auto X = word2vec(C1,eval,v,K,words1.size(),N1);
-
     auto srcWords = transSourceWords(T);
 
-    vector<string> invWordMap1(words1.size());
-    vector<string> invWordMap2(words2.size());
+    auto mono = monoKernel(v,K,T,Tinv,words1);
 
-    invertWordMap(words1,invWordMap1);
-    invertWordMap(words2,invWordMap2);
+    auto perm = gsl_permutation_alloc(K);
+
+    int signum;
+    gsl_linalg_LU_decomp(mono.get(),perm,&signum);
+    
+    auto v2 = arpack_sym_eig(C2,K,eval,true,NULL);
+
+//    auto bi = biKernel(v,v2,K,T,words1,words2);
 
     return 0;
 }

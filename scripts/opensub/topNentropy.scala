@@ -19,7 +19,7 @@ val thresh = scores.filter(_!=0.0).sortBy(-_).apply(topN)
 
 System.err.println("Threshold: " + thresh)
 
-var i = 1
+var i = 0
 
 for((l,s) <- (corpus zip scores.iterator)) {
   if(s >= thresh && s != 0.0) {

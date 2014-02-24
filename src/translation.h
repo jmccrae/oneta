@@ -2,6 +2,7 @@
 #include "sparse_mat.h"
 #include <unordered_map>
 #include <set>
+#include <gsl/gsl_matrix.h>
 
 typedef std::map<std::string,std::vector<std::pair<std::string,double>>> TranslationMap;
 typedef std::shared_ptr<std::map<std::string,std::vector<std::pair<std::string,double>>>> TranslationMapPtr;
@@ -38,6 +39,7 @@ std::shared_ptr<SparseMat> buildTDM(const char *fName, int N, std::unordered_map
  * Build the translation function from the CSV file of the format
  *   srcWord,trgWord,weight
  * @param fName The file name
+ * @param inverse Generate the map in inverse mode
  * @return The translation map: a map where each source word is linked to a list of 
  * translation/score pairs
  */
@@ -63,3 +65,26 @@ std::shared_ptr<std::set<std::string>> transTargetWords(TranslationMapPtr transM
  * @param invMap The list to write, must already be initialized to correct size
  */
 void invertWordMap(std::unordered_map<std::string,int>& wordMap, std::vector<std::string>& invMap);
+
+/**
+ * Convert a sparse TDM to a dense vector representation
+ * @param C The TDM
+ * @param eval The eigenvalues as a vector of K values
+ * @param evectors The eigenvectors as a KxN matrix
+ * @param K The number of topics used
+ * @param W The number of unique tokens
+ * @param N The number of documents
+ * @return The vector representation of the word
+ */
+//double *word2vec(shared_ptr<SparseMat> C, double *eval, double *evectors, int K, int W, int N);
+
+
+std::shared_ptr<gsl_matrix> monoKernel(double *evectors, int K, 
+        TranslationMapPtr translations, TranslationMapPtr invTranslations, 
+        std::unordered_map<std::string,int>& wordMap);
+
+/** Invert a translation map
+ * @param The translation map
+ * @return The inverted map
+ */
+TranslationMapPtr inverseMap(TranslationMapPtr map);
