@@ -8,8 +8,8 @@ var fromFile : Iterator[String] = null
 var toFile : Iterator[String] = null
 var fromOut : PrintWriter = null
 var toOut : PrintWriter = null
-val prefix = "OpenSubtitles2012/filtered/"
-val out    = "OpenSubtitles2012/docs/"
+val prefix = "OpenSubtitles2013/raw/"
+val out    = "OpenSubtitles2013/docs/"
 val lang1 = args(0)
 val lang2 = args(1)
 
@@ -49,6 +49,7 @@ io.Source.stdin.getLines.foreach {
         toFile = io.Source.fromInputStream(new GZIPInputStream(new FileInputStream(prefix+to))).getLines
         fromOut = new PrintWriter(out + "doc" + n + "." + lang1 + ".txt")
         toOut = new PrintWriter(out + "doc" + n + "." + lang2 + ".txt")
+        System.err.println("%s // %s" format (from, to))
         n += 1
     }
     case alignLine(f,t) => {
